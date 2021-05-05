@@ -94,23 +94,19 @@ smSizeFilter = 350;       % [nm2] (default: 374 for 700nm, 760 for 3000nm) Min a
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   Less Frequently Edited     %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Add path to Muller Lab matlab files
-addpath('./../resources/MATLAB_helper_scripts')
 
 % SET INPUT DIRECTORY
-%inputDir = '/Users/matt/Google_Drive/ETH_Zurich/MullerLab/FilesToAnalyze/20210223_Instructional/*.tsv';
-inputDirControl = '/Users/matt/Google_Drive/ETH_Zurich/MullerLab/FilesToAnalyze/2021/control/*.spm';
-inputDirCompound = '/Users/matt/Google_Drive/ETH_Zurich/MullerLab/FilesToAnalyze/2021/compound/*.spm';
+inputDir = '/Users/matt/Google_Drive/ETH_Zurich/MullerLab/MSc_Thesis/training_data/GSDMD/Control';
 
 % SET INPUT poreTypes CSV and flag whether or not to use (leave as FALSE if pores have not yet been classified)
 usePoreTypes = false;
 choosePoreTypes = false;
 
 % SET OUTPUT DIRECTORY
-outDirPrepend = '/Users/matt/Google_Drive/ETH_Zurich/MullerLab/FilesToAnalyze/2021/Output';
+outDirPrepend = './../analysis';
 
 % Choose background flattening model (old/new)
-new_flat = false;
+new_flat = true;
 
 % Remove pore coverage
 %if exist('./../surfCoverage_New.txt', 'file')==2
@@ -121,11 +117,15 @@ new_flat = false;
 %    DO NOT EDIT BELOW THIS LINE    %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Add path to Muller Lab matlab files
-addpath('~/Google_Drive/ETH_Zurich/MullerLab/MatlabCode/')
+% Add path to supporting matlab files
+addpath(genpath('./../resources/MATLAB_helper_scripts'))
 
-% Get list of all files to analyze this run
-files = [dir(inputDirControl);dir(inputDirCompound)];
+% Get list of all raw AFM files to analyze this run (.spm suffix)
+files = dir([inputDir,'/*.0*']);
+
+% Get poreTypesCSV from same folder if present
+poreTypesCSV = dir([inputDir,'/*.csv']);
+poreTypesCSV = [poreTypesCSV.folder,'/',poreTypesCSV.name];
 
 % Open pore type list
 if usePoreTypes
@@ -141,11 +141,12 @@ else
     PT = [];
     outDir = fullfile(outDirPrepend,strjoin([string(datetime('now','Format','yyyyMMdd')),'_pre_labeling'],''));
 end
-[~,~,~] = mkdir(outDir);
+[~,~,~] = mkdir("./../analysis");
+%[~,~,~] = mkdir(outDir);
 
 % Initialize coverage file
-delete(fullfile(outDir,'surfCoverage.csv'));
-fid = fopen(fullfile(outDir,'surfCoverage.csv'), 'a') ;
+delete(fullfile(outDirPrepend,'surfCoverage.csv'));
+fid = fopen(fullfile(outDirPrepend,'surfCoverage.csv'), 'a') ;
 headerString = 'Image,Group,NumIsolatedObjects_7,IsolatedObjCoverage_7,NumDefects_8,DefectCoverage_8,lowCoverage_9,highCoverage_10,totalCoverage_11';
 fprintf(fid,'%s\n',headerString);
 fclose(fid);
@@ -153,26 +154,36 @@ fclose(fid);
 % Get current dir, to switch back to at end of script
 oldDir = pwd;
 
+% Create output directories
+[~,~,~] = mkdir([outDirPrepend '/flattened_images']);
+[~,~,~] = mkdir([outDirPrepend '/oligomer_profiles']);
+[~,~,~] = mkdir([outDirPrepend '/report_images']);
+[~,~,~] = mkdir([outDirPrepend '/reports']);
+[~,~,~] = mkdir([outDirPrepend '/summary_txt']);
+
+%% Start Parallel Pool
+gcp;
+
 %% Run below code for each image
 tic
-for cImage = 1:length(files)
+for cImage = 1%:length(files)
     
     %% Raw AFM Image
     
+% Change output directory structure 2021.05.05, placed outside loop above
+%{    
     % Create new directory for script outputs and change to that directory
-    directory = strjoin([outDir,'/',files(cImage).name,'_REPORT'],'');
-    [~] = rmdir(directory,'s');
-    mkdir(directory);
-    cd(directory)
+         directory = strjoin([outDir,'/',files(cImage).name,'_REPORT'],'');
+         [~] = rmdir(directory,'s');
+         mkdir(directory);
+         cd(directory)
+%}    
+    % Add folders for output images
+    mkdir([outDirPrepend,'/report_images/',files(cImage).name]);
+
     
-    % Add folder for output images
-    [~] = rmdir('images','s');
-    mkdir('images');
-    
-    % Start parallel pool for later use
-    %gcp
-    %    delete(gcp('nocreate'))
-    %    pool = parpool("local10");
+    % Clear parallel pool memory after previous iteration for later use
+    parfevalOnAll(@clearvars, 0)
     
     minPH = 1.2;        % Min peak height [nm]
     minPD = 5;          % Min peak distance [nm]
@@ -201,14 +212,14 @@ for cImage = 1:length(files)
     y = rot90(zeros(samplePoints) + linspace(0,imSize,samplePoints));
     z = M;
     
-    figure2; set(gcf,'Position',[1 1 1000 1000]);
+    figure; set(gcf,'Position',[1 1 1000 1000]);
     surf(x,y,z-min(min(z)),'LineStyle','none'); %zlim([-2,20]);
     %caxis([-2,4]);
     xlabel('X [nm]','FontSize',18);
     ylabel('Y [nm]','FontSize',18);
     zlabel('Height [nm]','FontSize',18);
     %title('Raw AFM Image');
-    exportgraphics(gcf,fullfile('./images/',[files(cImage).name,'_1_raw.png']));
+    exportgraphics(gcf,fullfile([outDirPrepend,'/report_images/',files(cImage).name,'/',files(cImage).name,'_1_raw.png']));
     
     
     %% Background Removal
@@ -268,14 +279,15 @@ for cImage = 1:length(files)
     im4 = bsxfun(@minus, im2, rowMeans2);
     
     
-    figure2; set(gcf,'Position',[1 1 1000 1000]);
+    figure; set(gcf,'Position',[1 1 1000 1000]);
     surf(x,y,im4,'LineStyle','none'); zlim([-2,20]);
-    caxis([-2,4]); savefig('Flattened');
+    caxis([-2,4]);
     xlabel('X [nm]','FontSize',18);
     ylabel('Y [nm]','FontSize',18);
     zlabel('Height [nm]','FontSize',18);
+    savefig([outDirPrepend,'/flattened_images/',files(cImage).name,'.fig']);
     %title('Flattened AFM Image');
-    exportgraphics(gcf,fullfile('./images/',[files(cImage).name,'_2_flat.png']));
+    exportgraphics(gcf,fullfile([outDirPrepend,'/report_images/',files(cImage).name,'/',files(cImage).name,'_2_flat.png']));
     
     
     % Watershedding
@@ -316,7 +328,7 @@ for cImage = 1:length(files)
         z20(cc.PixelIdxList{i}) = true;
     end
     
-    imwrite(z20,fullfile('./images/',[files(cImage).name,'_8_membraneDefects.png']),'png');
+    imwrite(z20,fullfile([outDirPrepend,'/report_images/',files(cImage).name,'/',files(cImage).name,'_8_membraneDefects.png']),'png');
     
     % Added 2020.11.17: size select non-filled objects
     cc_nofill = bwconncomp(z9, 4);
@@ -330,9 +342,9 @@ for cImage = 1:length(files)
     
     % Save image showing all pores (2D projection)
     figure; imshow(im4); colormap copper;
-    exportgraphics(gcf,fullfile('./images/',[files(cImage).name,'_3_all.png']));
+    exportgraphics(gcf,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_3_all.png']));
     
-    %imwrite(im4,'copper',fullfile('./images/',[files(cImage).name,'_3_all.png']),'png');
+    %imwrite(im4,'copper',fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'__3_all.png']),'png');
     
     % copy im4 but remove non-single pore features for better pore isolation
     im5 = im4;
@@ -340,15 +352,15 @@ for cImage = 1:length(files)
     im5(z5 ~= z8) = 0;  % 07.10.2020 change to z5 to remove banding around isolated objects
     
     figure; imshow(im5); colormap copper;
-    exportgraphics(gcf,fullfile('./images/',[files(cImage).name,'_4_isolated.png']));
+    exportgraphics(gcf,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_4_isolated.png']));
     
-    %imwrite(im5,'copper',fullfile('./images/',[files(cImage).name,'_4_isolated.png']),'png');
+    %imwrite(im5,'copper',fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_/',files(cImage).name,'_4_isolated.png']),'png');
     
     %% Binarized, Watershedded Image
     
     delete(gca); close all;
     
-    imwrite(z8,fullfile('./images/',[files(cImage).name,'_5_watershedded.png']),'png');
+    imwrite(z8,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_5_watershedded.png']),'png');
     
     %% Characterize Objects
     
@@ -372,7 +384,7 @@ for cImage = 1:length(files)
         z12(cc2.PixelIdxList{i}) = true;
     end
     
-    imwrite(z12,fullfile('./images/',[files(cImage).name,'_7_poreCoverage.png']),'png');
+    imwrite(z12,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_7_poreCoverage.png']),'png');
     
     %% Pore classification  by saved excel table or user input
     
@@ -385,7 +397,7 @@ for cImage = 1:length(files)
         oligoTypes = zeros(length(S2),1);
         for i = 1:length(S2)
             % Show oligo under consideration
-            figure2;
+            figure;
             imshow(rescale(im5(max(S2{i}(2)-scaleFactor,1):min(S2{i}(2)+scaleFactor,samplePoints),...
                 max(S2{i}(1)-scaleFactor,1):min(S2{i}(1)+scaleFactor,samplePoints)),0,250),copper)
             set(gcf,'Position',[1 1 500 500]);
@@ -460,21 +472,21 @@ for cImage = 1:length(files)
         line(xMinor,yMinor,'Color','c','LineWidth',2);
     end
     
-    exportgraphics(gcf,fullfile('./images/',[files(cImage).name,'_6_axis.png']));
+    exportgraphics(gcf,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_6_axis.png']));
     hold off
     
     %% Overlapping oligomer (height mask)
     highStuff = im4 >= maxHeight;
-    imwrite(highStuff,fullfile('./images/',[files(cImage).name(8:end-6),'_10_highStuff.png']),'png');
+    imwrite(highStuff,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_10_highStuff.png']),'png');
     
     allStuff = z12 + z20;
-    imwrite(allStuff,fullfile('./images/',[files(cImage).name(8:end-6),'_11_allStuff.png']),'png');
+    imwrite(allStuff,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_11_allStuff.png']),'png');
     
     lowStuff = allStuff - highStuff;
-    imwrite(lowStuff,fullfile('./images/',[files(cImage).name(8:end-6),'_9_lowStuff.png']),'png');
+    imwrite(lowStuff,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_9_lowStuff.png']),'png');
     
     %% Labeled Image
-    %{
+    
     % Create new image to be labeled in below loop
     im6 = im4;
     % Pre-allocate structure memory for individual, isolated pores
@@ -536,20 +548,20 @@ for cImage = 1:length(files)
         
         % Add pore label to image
         im6 = insertText(im6,[S2{i}(1)+15,S2{i}(2)-15],i,...
-            'FontSize',12,'Font','LucidaSansDemiBold',...
+            'FontSize',8,'Font','LucidaSansDemiBold',...
             'BoxOpacity',0.8,'TextColor','black');
     end
     
     pubPores.X = pores.X;
     
-    imwrite(im6,fullfile('./images/',[files(cImage).name,'_7_labeled.png']),'png');
+    imwrite(im6,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_12_labeled.png']),'png');
     
     %% 3D Pore Plots
     delete(gca); close all;
     
     % [3D SURF] Save individual pore surface plots
     parfor i = 1:length(S2)
-        figure2;
+        figure;
         surf(pores.X{i},pores.Y{i},pores.Z{i},'LineStyle','none');
         xlabel('X [nm]','FontSize',10);
         ylabel('Y [nm]','FontSize',10);
@@ -557,7 +569,7 @@ for cImage = 1:length(files)
         %title(sprintf('Pore %i',i));
         caxis([-2,4]);
         zlim([-2,8]);
-        exportgraphics(gcf,fullfile('./images/',[files(cImage).name '_' num2str(i+7) '_3D.png']));
+        exportgraphics(gcf,fullfile([outDirPrepend, '/report_images/' files(cImage).name '/' files(cImage).name '_' num2str(i+12) '_3D.png']));
     end
     %% 2D Pore Plots
     
@@ -567,7 +579,7 @@ for cImage = 1:length(files)
     % generator. Replaces "Get at most 32 pores per subplot (4x8)"
     parfor i = 1:length(S2)
         % [2D Depth] Plotting pores individually;
-        imwrite(rescale(pores.Z{i},0,250),copper,fullfile('./images/',[files(cImage).name '_' num2str(i+7+length(S2)) '_2D.png']),'png');
+        imwrite(rescale(pores.Z{i},0,250),copper,fullfile([outDirPrepend '/report_images/' files(cImage).name '/' files(cImage).name '_' num2str(i+12+length(S2)) '_2D.png']),'png');
         
         figure; imshow(pores.Z{i}); hold on
         % Ellipse
@@ -600,7 +612,7 @@ for cImage = 1:length(files)
         line(xMajor,yMajor,'Color','b','LineWidth',2);
         line(xMinor,yMinor,'Color','c','LineWidth',2);
         yline(ybar,'g--','LineWidth',2);
-        exportgraphics(gcf,fullfile('./images/',[files(cImage).name '_' num2str(i+7+2*length(S2)) '_2D_axis.png']));
+        exportgraphics(gcf,fullfile([outDirPrepend, '/report_images/' files(cImage).name '/' files(cImage).name '_' num2str(i+12+2*length(S2)) '_2D_axis.png']));
     end
     
     %% Pore Cross-Sections
@@ -666,7 +678,7 @@ for cImage = 1:length(files)
             % Check that complete walls were found on each side, else mark
             % as failed pore
             if size(P1,2)<2 | size(P2,2)<2
-                figure2;
+                figure;
                 findpeaks(pores.CS{5,i},pores.CS{1,i},...
                     'MinPeakDistance',minPD,'MinPeakHeight',minPH,'annotate','extents')
                 hold on;
@@ -677,7 +689,7 @@ for cImage = 1:length(files)
                 %title(sprintf('Pore %i',i));
                 failedPore = i + sum(ignoredPores < i);
                 text(mean(pores.CS{1,i})-10,1,{'Pore width calculation failed,';sprintf('please ignore pore %i',failedPore)})
-                exportgraphics(gcf,fullfile('./images/',[files(cImage).name '_' num2str(i+5+3.*length(S2)) '_profile.png']));
+                exportgraphics(gcf,fullfile([outDirPrepend, '/report_images/' files(cImage).name '/' files(cImage).name '_' num2str(i+12+3.*length(S2)) '_profile.png']));
                 continue
             else
                 initialMidwallWidthL = P1(1,2)-P1(1,1);
@@ -723,7 +735,7 @@ for cImage = 1:length(files)
             %*************************%
             
             % Plot data with smoothened curve overlayed
-            figure2;
+            figure;
             hold on;
             plot(smoothFit);
             plot(pores.CS{1,i},pores.CS{2,i},'r--',...
@@ -771,7 +783,7 @@ for cImage = 1:length(files)
             MidwallWidthL(i) = currentMidWallWidthL;
             MidwallWidthR(i) = currentMidWallWidthR;
         else
-            figure2;
+            figure;
             findpeaks(pores.CS{5,i},pores.CS{1,i},...
                 'MinPeakDistance',minPD,'MinPeakHeight',minPH,'annotate','extents')
             hold on;
@@ -783,7 +795,7 @@ for cImage = 1:length(files)
             failedPore = i + sum(ignoredPores < i);
             text(mean(pores.CS{1,i})-10,1,{'Pore detection failed,';sprintf('please check input parameters for pore %i',failedPore)})
         end
-        exportgraphics(gcf,fullfile('./images/',[files(cImage).name '_' num2str(i+5+3.*length(S2)) '_profile.png']));
+        exportgraphics(gcf,fullfile([outDirPrepend, '/report_images/' files(cImage).name '/' files(cImage).name '_' num2str(i+12+3.*length(S2)) '_profile.png']));
     end
     
     % 2020.11.17
@@ -798,7 +810,7 @@ for cImage = 1:length(files)
     %*************************%
     %** SAVE PORE STRUCTURE **%
     %*************************%
-    save('pore_profiles.mat','-struct','pubPores');
+    save([outDirPrepend '/oligomer_profiles/' files(cImage).name '.mat'],'-struct','pubPores');
     
     DepthAbs = transpose(round(pores.maxDepth.*100)./100);
     Depth = round(Depth.*100)./100;
@@ -817,20 +829,20 @@ for cImage = 1:length(files)
     %else
     %    T = table(Label,Depth,Diameter,Height,MidwallWidthL,MidwallWidthR,DepthAbs,Depth3,HeightAbs,Height3,MajorAxis,MinorAxis);
     %end
-    writetable(T,['/Users/matt/Google_Drive/ETH_Zurich/MullerLab/FilesToAnalyze/2020/Paper/SummaryTXT/', files(cImage).name,'_out.txt'],'Delimiter','\t')
+    writetable(T,[outDirPrepend, '/summary_txt/', files(cImage).name,'_out.txt'],'Delimiter','\t')
     
-    %}
     
     % Save surface coverage to csv file
     totalCov = sum(sum(allStuff))./numel(allStuff);
     surfCov = sum(sum(z12))./numel(z12);
     analysisFolder = strsplit(files(cImage).folder,filesep);
+    numDefects = sum(membraneDefects);
     defectCov = sum(sum(z20))./numel(z20);
     lowCov = sum(sum(lowStuff))./numel(lowStuff);
     highCov = sum(sum(highStuff))./numel(highStuff);
     
     
-    fid = fopen(fullfile(outDir,'surfCoverage.csv'), 'a') ;
+    fid = fopen([outDirPrepend '/surfCoverage.csv'], 'a');
     fprintf(fid,'%s,%s,%i,%d,%i,%d,%d,%d,%d\n',files(cImage).name,analysisFolder{end},length(S2),surfCov,...
         numDefects,defectCov,lowCov,highCov,totalCov);
     fclose(fid) ;
@@ -846,9 +858,8 @@ for cImage = 1:length(files)
     
     %% Write report
     
-    %reportGenerator_20201116(files(cImage),directory,T,surfCov);
-    %mlreportgen.utils.rptviewer.closeAll()
-    
+    GSDMx_reportGenerator(files(cImage),outDirPrepend,T,surfCov);
+    mlreportgen.utils.rptviewer.closeAll()
     
     %% Update waitbar
     
@@ -858,4 +869,6 @@ toc
 
 %% After processing all data, run R Script to generate summary statistics with figures
 
+
+%% Change back to old directory at end of script
 cd(oldDir)

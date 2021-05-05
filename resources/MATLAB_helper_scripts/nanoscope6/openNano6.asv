@@ -70,17 +70,15 @@ for im=1:2  % 20210310 Adapt to only take first 2 images, Trace + Retrace.
     channel_info(im).Width = param(6).values(2); %Data position
     channel_info(im).Length = param(6).values(3); %Data position
     channel_info(im).Name=param(5).channel(im).name; %Name of channel 1
-    channel_info(im).Zsensitivity=Z_Sensitivity;
-    channel_info(im).scaling=param(1).values(im);
-    channel_info(im).Z_Magnification=param(8).values(im);
-    channel_info(im).Finalscaling=param(8).values(im)*param(1).values(im);
+    %channel_info(im).scaling(im)=param(1).values(im);
+    %channel_info(im).Z_Magnification(im)=param(8).values(im);
+    channel_info(im).Finalscaling(im)=param(8).values(im)*param(1).values(im);
     
     switch channel_info(im).Name
         case 'Height'
            channel_info(im).Unit='nm' ;
+           channel_info(im).Finalscaling(im)=param(7).values*param(8).values(im)*param(1).values(im);
            finalscaling(im)=(Z_Magnification(im)*scaling(im)*Z_Sensitivity)/(65535+1);
-           %channel_info(im).Finalscaling=param(7).values*param(8).values(im)*param(1).values(im);
-           channel_info(im).Finalscaling=finalscaling(im);
            
         case 'Deflection'
            channel_info(im).Unit='V';        
@@ -107,10 +105,10 @@ for i = 1:2 % 20210310 Adapt to only take first 2 images, Trace + Retrace.
    A = fread(fid, [spl(i) linno],'int16');
    images(:,:,i) = rot90(finalscaling(i)*A);
    %images(:,:,i) = rot90(A);
-   emptystring=[];   
-   stringsize=25-size(channel_info(i).Name,2);
-   for n=1:stringsize emptystring=[emptystring ' ']; end;
-   disp(['   ' num2str(i) '. ' channel_info(i).Name emptystring  channel_info(i).Trace '        '  channel_info(i).Unit])
+   %emptystring=[];   
+   %stringsize=25-size(channel_info(i).Name,2);
+   %for n=1:stringsize emptystring=[emptystring ' ']; end;
+   %disp(['   ' num2str(i) '. ' channel_info(i).Name emptystring  channel_info(i).Trace '        '  channel_info(i).Unit])
 end;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

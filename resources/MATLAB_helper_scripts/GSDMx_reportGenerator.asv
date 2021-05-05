@@ -21,7 +21,7 @@ function GSDMx_reportGenerator(file,outDirPrepend,T,surfCov)
 % Start Report Generation
 import mlreportgen.report.*
 import mlreportgen.dom.*
-R = Report([outDirPrepend,'/reports/',file.name,'.pdf'],'pdf');
+R = report([outDirPrepend,'/reports/',file.name,'.pdf'],'pdf','quiet','-noview');
 open(R);
 
 br = PageBreak();

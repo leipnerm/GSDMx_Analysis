@@ -26,6 +26,7 @@ A fully automated analysis pipeline to take unprocessed, raw AFM data of GSDMx p
     * Curve Fitting Toolbox
     * Computer Vision Toolbox
     * Statistics and Machine Learning Toolbox
+    * Signal Processing Toolbox
 
 * R Packages
     * tidyverse
@@ -57,15 +58,44 @@ TBD
 ```
 analysis
 |
-----MATLAB_files
+----flattened_images
 |    |
-|    Figure_All_Composite.png
+|    20191119_cpd129_..._b.000.fig
+|    20191119_cpd129_..._b.001.fig
+|    ...
+|
+----oligomer_profiles
+|    |
+|    20191119_cpd129_..._b.000.mat
+|    20191119_cpd129_..._b.001.mat
+|    ...
+|
+----report_images
+|    |
+|    ----20191119_cpd129_..._b.000
+|    |      |
+|    |      20191119_cpd129_..._b.000_1_raw.png
+|    |      20191119_cpd129_..._b.000_2_flat.png
+|    |      ...
+|    |
+|    ----20191119_cpd129_..._b.001
+|           |
+|           20191119_cpd129_..._b.001_1_raw.png
+|           20191119_cpd129_..._b.001_2_flat.png
+|           ...
+|
+----reports
+|    |
+|    20191119_cpd129_..._b.000.pdf
+|    20191119_cpd129_..._b.001.pdf
 |    ...
 |
 ----R_Figures
-     |
-     figure1.png
-     ...
+|    |
+|    figure1.png
+|    ...
+|
+----surfCoverage.csv
 
 ```
 
@@ -77,6 +107,8 @@ CODE
 * Aaron Ponti, Matlab image processing guide
 * Open Nanoscope 6 AFM Images
         https://www.mathworks.com/matlabcentral/fileexchange/11515-open-nanoscope-6-afm-images
+* Natural-Order Filename Sort, Stephen Cobeldick
+        https://www.mathworks.com/matlabcentral/fileexchange/47434-natural-order-filename-sort
 
 DATA ACQUISITION and EXPERIMENTAL DESIGN:
 * Stefania Mari
