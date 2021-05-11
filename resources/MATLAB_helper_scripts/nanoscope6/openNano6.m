@@ -73,13 +73,11 @@ for im=1:2  % 20210310 Adapt to only take first 2 images, Trace + Retrace.
     channel_info(im).Zsensitivity=Z_Sensitivity;
     channel_info(im).scaling=param(1).values(im);
     channel_info(im).Z_Magnification=param(8).values(im);
-    channel_info(im).Finalscaling=param(8).values(im)*param(1).values(im);
     
     switch channel_info(im).Name
         case 'Height'
            channel_info(im).Unit='nm' ;
-           finalscaling(im)=(Z_Magnification(im)*scaling(im)*Z_Sensitivity)/(65535+1);
-           %channel_info(im).Finalscaling=param(7).values*param(8).values(im)*param(1).values(im);
+           finalscaling(im)=(scaling(im)*Z_Sensitivity)/(65535+1);
            channel_info(im).Finalscaling=finalscaling(im);
            
         case 'Deflection'
@@ -107,15 +105,15 @@ for i = 1:2 % 20210310 Adapt to only take first 2 images, Trace + Retrace.
    A = fread(fid, [spl(i) linno],'int16');
    images(:,:,i) = rot90(finalscaling(i)*A);
    %images(:,:,i) = rot90(A);
-   emptystring=[];   
-   stringsize=25-size(channel_info(i).Name,2);
-   for n=1:stringsize emptystring=[emptystring ' ']; end;
-   disp(['   ' num2str(i) '. ' channel_info(i).Name emptystring  channel_info(i).Trace '        '  channel_info(i).Unit])
-end;
+%    emptystring=[];   
+%    stringsize=25-size(channel_info(i).Name,2);
+%    for n=1:stringsize emptystring=[emptystring ' ']; end
+%    disp(['   ' num2str(i) '. ' channel_info(i).Name emptystring  channel_info(i).Trace '        '  channel_info(i).Unit]);
+end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %function [header ] = read_header(file_name);
-function [parameters] = read_header_values(file_name,searchstring);
+function [parameters] = read_header_values(file_name,searchstring)
     
     % Define End of file identifier
     % Opend the file given in argument and reference as
@@ -132,7 +130,7 @@ function [parameters] = read_header_values(file_name,searchstring);
     for ij=1:nstrings 
         parcounter(ij)=1; 
         parameters(ij).trace=0;
-    end;
+    end
 
     while( and( ~eof, ~header_end ) )
    
@@ -146,7 +144,7 @@ function [parameters] = read_header_values(file_name,searchstring);
                  if (b>0)
                     parameters(ij).values(parcounter(ij))=extract_num(line(b(1):end));
                  else parameters(ij).values(parcounter(ij))=extract_num(line);
-                end;
+                 end
                 
             else
                 b= findstr(line,'"');
@@ -154,14 +152,16 @@ function [parameters] = read_header_values(file_name,searchstring);
                     parameters(ij).channel(parcounter(ij)).name=line(b(1)+1:b(2)-1); 
                 else
                     if (findstr(line,'Trace')>0) parameters(ij).trace=1; end;
-                end;
-            end;
+                end
+            end
             parcounter(ij)=parcounter(ij)+1;
         end
-    end;
+    end
     
-    if( (-1)==line )  eof  = 1;  end     
-    if length( findstr( line, '\*File list end' ) ) header_end = 1;    end
+    if( (-1)==line )  eof  = 1;  
+    end     
+    if length( findstr( line, '\*File list end' ) ) header_end = 1;    
+    end
     counter=counter+1;
     end
 fclose(fid);      

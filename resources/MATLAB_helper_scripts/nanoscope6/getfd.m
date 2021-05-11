@@ -22,7 +22,7 @@ function Data = getfd(file_name)
 
 pos_spl = di_header_find(file_name,'\Samps/line');
 pos_data = di_header_find(file_name,'\Data offset');
-scal_data = di_header_find(file_name,'\@4:Z scale: V [Sens.');
+scal_data = di_header_find(file_name,'\@2:Z scale: V [Sens.');              % Updated 10.05.2021: old: '\@4:Z scale: V [Sens.'
 %pos_senszscan =  di_header_find(file_name,'\@Sens. Zscan');
 pos_ramp = di_header_find(file_name,'Ramp size Zsweep');
 %pos_sensdef = di_header_find(file_name,'Sens. Deflection');
