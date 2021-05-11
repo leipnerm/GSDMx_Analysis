@@ -103,7 +103,7 @@ smSizeFilter = 350;       % [nm2] (default: 374 for 700nm, 760 for 3000nm) Min a
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % SET INPUT DIRECTORY
-inputDir = '/Users/matt/Google_Drive/ETH_Zurich/MullerLab/MSc_Thesis/training_data/GSDMD/Control';
+inputDir = '/Users/matt/Google_Drive/ETH_Zurich/MullerLab/MSc_Thesis/raw_data/gsdmd_data_for_analysis';
 
 % SET INPUT poreTypes CSV and flag whether or not to use (leave as FALSE if pores have not yet been classified)
 usePoreTypes = false;
@@ -127,8 +127,9 @@ new_flat = true;
 % Add path to supporting matlab files
 addpath(genpath('./../resources/MATLAB_helper_scripts'));
 
-% Get list of all raw AFM files to analyze this run (.spm suffix)
-files = dir([inputDir,'/*.0*']);
+% UPDATED 20210511: searched recursively through all subdir in inputDir
+% Get list of all raw AFM files to analyze this run (.000, .001, etc. suffix)
+files = dir(fullfile(inputDir,'**/*.0*'));
 
 % Get poreTypesCSV from same folder if present
 poreTypesCSV = dir([inputDir,'/*.csv']);
@@ -152,12 +153,12 @@ end
 %[~,~,~] = mkdir(outDir);
 
 % Initialize coverage file
-warning('off')
-delete(fullfile(outDirPrepend,'surfCoverage.csv'));
-fid = fopen(fullfile(outDirPrepend,'surfCoverage.csv'), 'a') ;
-headerString = 'Image,Group,NumIsolatedObjects_7,IsolatedObjCoverage_7,NumDefects_8,DefectCoverage_8,lowCoverage_9,highCoverage_10,totalCoverage_11';
-fprintf(fid,'%s\n',headerString);
-fclose(fid);
+% warning('off')
+% delete(fullfile(outDirPrepend,'surfCoverage.csv'));
+% fid = fopen(fullfile(outDirPrepend,'surfCoverage.csv'), 'a') ;
+% headerString = 'Image,Group,NumIsolatedObjects_7,IsolatedObjCoverage_7,NumDefects_8,DefectCoverage_8,lowCoverage_9,highCoverage_10,totalCoverage_11';
+% fprintf(fid,'%s\n',headerString);
+% fclose(fid);
 
 % Get current dir, to switch back to at end of script
 oldDir = pwd;
@@ -178,7 +179,7 @@ gcp;
 
 %% Run below code for each image
 tic
-for cImage = 1%:length(files)
+for cImage = 1:length(files)
     
     %% Raw AFM Image
     
@@ -277,7 +278,7 @@ for cImage = 1%:length(files)
         % 20210510 Lastly, check if all elements of row are nan even before dilation, in which case replace
         % with average of nearest non-nan mean rows on either side
         if any(isnan(rowMeans))
-            rowMeans = fillmissing(rowMeans,'movmean',3);
+            rowMeans = fillmissing(rowMeans,'movmean',5);
         end
     end
     
@@ -343,6 +344,7 @@ for cImage = 1%:length(files)
             z8(cc.PixelIdxList{i}) = true;
         else
             z20(cc.PixelIdxList{i}) = true;
+            membraneDefects(i) = true;
         end
     end
     
@@ -877,6 +879,8 @@ for cImage = 1%:length(files)
     lowCov = sum(sum(lowStuff))./numel(lowStuff);
     highCov = sum(sum(highStuff))./numel(highStuff);
     
+    Tcov = {files(cImage).name,analysisFolder{end},length(S2),surfCov,...
+        numDefects,defectCov,lowCov,highCov,totalCov};
     
     fid = fopen([outDirPrepend '/surfCoverage.csv'], 'a');
     fprintf(fid,'%s,%s,%i,%d,%i,%d,%d,%d,%d\n',files(cImage).name,analysisFolder{end},length(S2),surfCov,...
@@ -898,7 +902,7 @@ for cImage = 1%:length(files)
         case "FullAnalysis"
             GSDMx_reportGenerator(files(cImage),outDirPrepend,T,surfCov);
         case "SurfaceCoverage"
-            GSDMx_reportGenerator_surfCov(files(cImage),outDirPrepend,T,surfCov);
+            GSDMx_reportGenerator_surfCov(files(cImage),outDirPrepend,Tcov);
     end
     mlreportgen.utils.rptviewer.closeAll()
     

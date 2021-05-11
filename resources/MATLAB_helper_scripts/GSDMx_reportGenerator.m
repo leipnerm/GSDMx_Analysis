@@ -74,7 +74,7 @@ im3.Image = [outDirPrepend,'/report_images/',file.name,'/',file.name,'_3_all.png
 im3.Caption = 'All Objects';
 add(chapter3,im3);
 
-p = Paragraph(['hGSDMD coverage: ', num2str(round(surfCov.*100,2)), '%']);
+p = Paragraph(['GSDMx coverage: ', num2str(round(surfCov.*100,2)), '%']);
 add(chapter3,p);
 
 im3 = FormalImage();
