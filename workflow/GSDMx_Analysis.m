@@ -88,7 +88,8 @@ mode = "SurfaceCoverage";
 minCirc = 0.3;  % (default 0.3) Ratio of minor axis to major axis
 
 % Hight Filter (removed anything with height over this amount)
-maxHeight = 4;  % [nm]
+oligoMaxHeight = 4;  % [nm]
+proteinMaxHeight = 9;  % [nm]
 
 % Max length of major axis (to help filter out grouped oligos/membrane
 % defects)
@@ -153,12 +154,12 @@ end
 %[~,~,~] = mkdir(outDir);
 
 % Initialize coverage file
-% warning('off')
-% delete(fullfile(outDirPrepend,'surfCoverage.csv'));
-% fid = fopen(fullfile(outDirPrepend,'surfCoverage.csv'), 'a') ;
-% headerString = 'Image,Group,NumIsolatedObjects_7,IsolatedObjCoverage_7,NumDefects_8,DefectCoverage_8,lowCoverage_9,highCoverage_10,totalCoverage_11';
-% fprintf(fid,'%s\n',headerString);
-% fclose(fid);
+warning('off')
+delete(fullfile(outDirPrepend,'surfCoverage.csv'));
+fid = fopen(fullfile(outDirPrepend,'surfCoverage.csv'), 'a') ;
+headerString = 'Image,Group,Folder,NumIsolatedObjects_7,TransmembraneObjects_1nm,TransmembraneObjects_2nm,IsolatedObjCoverage_7,NumDefects_8,DefectCoverage_8,lowCoverage_9,highCoverage_10,totalCoverage_11';
+fprintf(fid,'%s\n',headerString);
+fclose(fid);
 
 % Get current dir, to switch back to at end of script
 oldDir = pwd;
@@ -179,7 +180,7 @@ gcp;
 
 %% Run below code for each image
 tic
-for cImage = 1:length(files)
+for cImage = 111%:length(files)
     
     %% Raw AFM Image
     
@@ -240,11 +241,11 @@ for cImage = 1:length(files)
     delete(gca); close all;
     
     % 1st Round of pore detection/masking
-    if new_flat
-        background = imopen(z, strel('cube', 20));
-    else
-        background = imopen(z, strel('line', 100,0));
-    end
+    %     if new_flat
+    %         background = imopen(z, strel('cube', 20));
+    %     else
+    background = imopen(z, strel('line', 100,0));
+    %     end
     z2 = z - background;
     % Blur image to help with binarization
     z3 = imfilter(z2, fspecial('average',3), 'symmetric');
@@ -252,6 +253,19 @@ for cImage = 1:length(files)
     z4 = imbinarize(z3,'adaptive','Sensitivity',0.1);
     % Fill in holes to get complete pore
     z5 = imfill(z4,'holes');
+    
+    % ADDED 20210511: Go ahead and filter really small dots (noise) out
+    % prior to dilation. Helps improve flattening in 2nd round
+    cc = bwconncomp(z5, 4);
+    objSizes = cellfun('length',cc.PixelIdxList);
+    noise = objSizes < smObj;
+    
+    % Show only objects/pores detected as within the desired size range
+    for i = find(noise)
+        z4(cc.PixelIdxList{i}) = false;
+        z5(cc.PixelIdxList{i}) = false;
+    end
+    
     % Dilate image a bit to ensure complete pore coverage
     z6 = imdilate(z5,strel('line',11,0));
     
@@ -278,7 +292,7 @@ for cImage = 1:length(files)
         % 20210510 Lastly, check if all elements of row are nan even before dilation, in which case replace
         % with average of nearest non-nan mean rows on either side
         if any(isnan(rowMeans))
-            rowMeans = fillmissing(rowMeans,'movmean',5);
+            rowMeans = fillmissing(rowMeans,'linear');
         end
     end
     
@@ -288,7 +302,8 @@ for cImage = 1:length(files)
     end
     
     % Find background from
-    background2 = imopen(im, strel('line', 100,0));
+    background2 = imopen(im, strel('line', 20,0));
+    %background2 = imopen(im, strel('cube', 20));
     
     im2 = z-background2;
     
@@ -299,7 +314,7 @@ for cImage = 1:length(files)
     
     % ADDED 20210510: account for full-NA rows due to full line of detected
     % object(s)
-    rowMeans2 = fillmissing(rowMeans2,'movmean',10);
+    rowMeans2 = fillmissing(rowMeans2,'linear');
     im4 = bsxfun(@minus, im2, rowMeans2);
     
     
@@ -340,7 +355,7 @@ for cImage = 1:length(files)
     z8 = false(size(z7));
     z20 = false(size(z7));
     for i = find(singlePores)
-        if max(im4(cc.PixelIdxList{i})) <= maxHeight
+        if max(im4(cc.PixelIdxList{i})) <= oligoMaxHeight
             z8(cc.PixelIdxList{i}) = true;
         else
             z20(cc.PixelIdxList{i}) = true;
@@ -505,14 +520,19 @@ for cImage = 1:length(files)
             
     end
     %% Overlapping oligomer (height mask)
-    highStuff = im4 >= maxHeight;
-    imwrite(highStuff,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_10_highStuff.png']),'png');
+    aggregateCoverage = im4 >= proteinMaxHeight;
+    imwrite(aggregateCoverage,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_10b_aggregateCoverage.png']),'png');
     
-    allStuff = z12 + z20;
-    imwrite(allStuff,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_11_allStuff.png']),'png');
+    highCoverage = im4 >= oligoMaxHeight & im4 <= proteinMaxHeight;
+    imwrite(highCoverage,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_10a_highCoverage.png']),'png');
     
-    lowStuff = allStuff - highStuff;
-    imwrite(lowStuff,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_9_lowStuff.png']),'png');
+    allCoverage = z12 + z20;
+    imwrite(allCoverage,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_11_allCoverage.png']),'png');
+    
+    lowCoverage = allCoverage - highCoverage - aggregateCoverage;
+    imwrite(lowCoverage,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_9_lowCoverage.png']),'png');
+    
+    
     
     %% Labeled Image
     
@@ -587,8 +607,29 @@ for cImage = 1:length(files)
             pubPores.X = pores.X;
             
             imwrite(im6,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_12_labeled.png']),'png');
-            
-            %% 3D Pore Plots
+        case "SurfaceCoverage"
+            pores = struct;
+            pores.maxDepth = zeros(1,length(S2));
+            pores.maxHeight = zeros(1,length(S2));
+            for i = 1:length(S2)
+                % Isolate pore by setting all other pores temporarily to 0
+                z10 = false(size(z8));
+                z10(cc2.PixelIdxList{i}) = true;
+                
+                im7 = im5;
+                im7(z8 ~= z10) = 0;
+                
+                % 20201116 Save max depth within detected oligomer
+                pores.maxDepth(i) = min(im7(z10));
+                pores.maxHeight(i) = max(im7(z10));
+            end
+            DepthAbs = transpose(round(pores.maxDepth.*100)./100);
+    end
+    
+    %% 3D Pore Plots
+    
+    switch mode
+        case "FullAnalysis"
             delete(gca); close all;
             
             % [3D SURF] Save individual pore surface plots
@@ -603,8 +644,12 @@ for cImage = 1:length(files)
                 zlim([-2,8]);
                 exportgraphics(gcf,fullfile([outDirPrepend, '/report_images/' files(cImage).name '/' files(cImage).name '_' num2str(i+12) '_3D.png']));
             end
-            %% 2D Pore Plots
-            
+    end
+    
+    %% 2D Pore Plots
+    
+    switch mode
+        case "FullAnalysis"
             delete(gca); close all;
             
             % CHANGE 05.04.2019: revert to individual plots to use with report
@@ -647,9 +692,12 @@ for cImage = 1:length(files)
                 exportgraphics(gcf,fullfile([outDirPrepend, '/report_images/' files(cImage).name '/' files(cImage).name '_' num2str(i+12+2*length(S2)) '_2D_axis.png']));
                 
             end
-            
-            %% Pore Cross-Sections
-            
+    end
+    
+    %% Pore Cross-Sections
+    
+    switch mode
+        case "FullAnalysis"
             delete(gca); close all;
             
             
@@ -867,24 +915,28 @@ for cImage = 1:length(files)
             %    T = table(Label,Depth,Diameter,Height,MidwallWidthL,MidwallWidthR,DepthAbs,Depth3,HeightAbs,Height3,MajorAxis,MinorAxis);
             %end
             writetable(T,[outDirPrepend, '/summary_txt/', files(cImage).name,'_out.txt'],'Delimiter','\t')
-            
     end
     
+    % ADDED 20210512: Count number of Transmembrane Oligomers/Features
+    Below1nm = sum(DepthAbs < -1);
+    Below2nm = sum(DepthAbs < -2);
+    
     % Save surface coverage to csv file
-    totalCov = sum(sum(allStuff))./numel(allStuff);
+    totalCov = sum(sum(allCoverage))./numel(allCoverage);
     surfCov = sum(sum(z12))./numel(z12);
     analysisFolder = strsplit(files(cImage).folder,filesep);
     numDefects = sum(membraneDefects);
     defectCov = sum(sum(z20))./numel(z20);
-    lowCov = sum(sum(lowStuff))./numel(lowStuff);
-    highCov = sum(sum(highStuff))./numel(highStuff);
+    lowCov = sum(sum(lowCoverage))./numel(lowCoverage);
+    highCov = sum(sum(highCoverage))./numel(highCoverage);
+    aggCov = sum(sum(aggregateCoverage))./numel(aggregateCoverage);
     
     Tcov = {files(cImage).name,analysisFolder{end},length(S2),surfCov,...
-        numDefects,defectCov,lowCov,highCov,totalCov};
+        numDefects,defectCov,lowCov,highCov,aggCov,totalCov};
     
     fid = fopen([outDirPrepend '/surfCoverage.csv'], 'a');
-    fprintf(fid,'%s,%s,%i,%d,%i,%d,%d,%d,%d\n',files(cImage).name,analysisFolder{end},length(S2),surfCov,...
-        numDefects,defectCov,lowCov,highCov,totalCov);
+    fprintf(fid,'%s,%s,%s,%i,%i,%i,%d,%i,%d,%d,%d,%d,%d\n',files(cImage).name,analysisFolder{end-1},analysisFolder{end},length(S2),Below1nm,Below2nm,surfCov,...
+        numDefects,defectCov,lowCov,highCov,aggCov,totalCov);
     fclose(fid) ;
     
     

@@ -67,8 +67,15 @@ L = length(image_pos);
 
 for im=1:2  % 20210310 Adapt to only take first 2 images, Trace + Retrace.
     channel_info(im).Trace=char((param(9).trace)*['Trace  ']+(1-param(9).trace)*['Retrace']);
-    channel_info(im).Width = param(6).values(2); %Data position
-    channel_info(im).Length = param(6).values(3); %Data position
+    % ADDED 20210511: check if for some reason file is missing width/length
+    % for each channel. If so, use first (and only) value in header 
+    if length(param(6).values) == 1
+        channel_info(im).Width = param(6).values;
+        channel_info(im).Length = param(6).values;
+    else
+        channel_info(im).Width = param(6).values(2); %Data position
+        channel_info(im).Length = param(6).values(3); %Data position
+    end
     channel_info(im).Name=param(5).channel(im).name; %Name of channel 1
     channel_info(im).Zsensitivity=Z_Sensitivity;
     channel_info(im).scaling=param(1).values(im);

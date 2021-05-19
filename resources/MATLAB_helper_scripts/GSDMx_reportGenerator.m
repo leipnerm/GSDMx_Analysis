@@ -29,9 +29,11 @@ br = PageBreak();
 % Add Title Page
 tp = TitlePage();
 tp.Title = 'Muller Lab, BSSE';
-tp.Subtitle = sprintf('Analysis of %s',file.name);
+subtitle = Paragraph(sprintf('Analysis of:\t\t%s',file.name));
+subtitle.Style = {HAlign('left'),FontFamily('Arial'),...
+         FontSize('12pt'),Color('black')};
+tp.Subtitle = subtitle;
 tp.Author = 'Matthew Leipner';
-
 dt = datetime('now', 'TimeZone', 'Europe/Madrid');
 dt.Format = 'dd.MM.uuuu';
 tp.PubDate = char(dt);
