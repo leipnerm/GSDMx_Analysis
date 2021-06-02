@@ -1,3 +1,5 @@
+function GSDMx_App_Analysis(app)
+
 %% GSDMx AFM Image Analysis
 
 %% Preface
@@ -69,7 +71,7 @@ DATA ACQUISITION and EXPERIMENTAL DESIGN:
 %% Setup
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% SET THE FOLLOWING PARAMTERS       %
+% READ IN PARAMTERS FROM APP        %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -80,41 +82,37 @@ DATA ACQUISITION and EXPERIMENTAL DESIGN:
 % height/depth/diameter details and so on) vs. only surface coverage
 % analysis. Simply switch which line is commented to switch between them.
 
-%mode = "FullAnalysis";
-mode = "SurfaceCoverage";
+mode = app.AnalysisType.Value;
 
 % Circularity Filter (will remove anything with circularity less than
 % this)
-minCirc = 0.3;  % (default 0.3) Ratio of minor axis to major axis
+minCirc = app.MinCircularity.Value;               % (default 0.3) Ratio of minor axis to major axis
 
 % Hight Filter (removed anything with height over this amount)
-oligoMaxHeight = 4;  % [nm]
-proteinMaxHeight = 9;  % [nm]
+oligoMaxHeight = app.OligoMaxHeight.Value;        % [nm]
+proteinMaxHeight = app.ProteinMaxHeight.Value;    % [nm]
 
 % Max length of major axis (to help filter out grouped oligos/membrane
 % defects)
-majorAxisFilter = 137;  % [nm] Max allowable major axis length
+majorAxisFilter = app.MaxMajorAxis.Value;         % [nm] Max allowable major axis length
 
 % Set size limits for object filtering
-lgSizeFilter = 10000;     % [nm2] (default: 2200 for 700nm, 9400 for 3000nm) Max area of an individual object
-smSizeFilter = 350;       % [nm2] (default: 374 for 700nm, 760 for 3000nm) Min area of an individual object, anything below this is discarded
+lgSizeFilter = app.LargeSizeFilter.Value;         % [nm2] (default: 2200 for 700nm, 9400 for 3000nm) Max area of an individual object
+smSizeFilter = app.SmallSizeFilter.Value;         % [nm2] (default: 374 for 700nm, 760 for 3000nm) Min area of an individual object, anything below this is discarded
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   Less Frequently Edited     %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% SET INPUT DIRECTORY
-inputDir = '/Users/matt/Google_Drive/ETH_Zurich/MullerLab/MSc_Thesis/raw_data/D65';
-
 % SET INPUT poreTypes CSV and flag whether or not to use (leave as FALSE if pores have not yet been classified)
-usePoreTypes = false;
+usePoreTypes = app.UsePoreTypes.Value;
 choosePoreTypes = false;
 
 % SET OUTPUT DIRECTORY
-outDirPrepend = './../analysis';
+outDirPrepend = app.outDir;
 
 % Choose background flattening model (old/new)
-new_flat = true;
+new_flat = ~app.UseOldFlattening.Value;
 
 % Remove pore coverage
 %if exist('./../surfCoverage_New.txt', 'file')==2
@@ -130,10 +128,10 @@ addpath(genpath('./../resources/MATLAB_helper_scripts'));
 
 % UPDATED 20210511: searched recursively through all subdir in inputDir
 % Get list of all raw AFM files to analyze this run (.000, .001, etc. suffix)
-files = dir(fullfile(inputDir,'**/*.0*'));
+files = app.files;
 
 % Get poreTypesCSV from same folder if present
-poreTypesCSV = dir([inputDir,'/*.csv']);
+poreTypesCSV = dir([app.inputDir,'/*.csv']);
 poreTypesCSV = [poreTypesCSV.folder,'/',poreTypesCSV.name];
 
 % Open pore type list
@@ -156,7 +154,7 @@ end
 warning('off')
 delete(fullfile(outDirPrepend,'surfCoverage.csv'));
 fid = fopen(fullfile(outDirPrepend,'surfCoverage.csv'), 'a') ;
-headerString = 'Image,Group,Folder,NumIsolatedObjects_7,TransmembraneObjects_1nm,TransmembraneObjects_2nm,IsolatedObjCoverage_7,NumDefects_8,DefectCoverage_8,lowCoverage_9,highCoverage_10,totalCoverage_11';
+headerString = 'Image,Group,Folder,NumIsolatedObjects_7,TransmembraneObjects_1nm,TransmembraneObjects_2nm,IsolatedObjCoverage_7,NumDefects_8,DefectCoverage_8,lowCoverage_9,highCoverage_10a,aggregateCoverage_10b,totalCoverage_11';
 fprintf(fid,'%s\n',headerString);
 fclose(fid);
 
@@ -169,10 +167,13 @@ oldDir = pwd;
 [~,~,~] = mkdir([outDirPrepend '/reports']);
 
 switch mode
-    case "FullAnalysis"
+    case "Full Analysis"
         [~,~,~] = mkdir([outDirPrepend '/oligomer_profiles']);
         [~,~,~] = mkdir([outDirPrepend '/summary_txt']);
 end
+
+% Set default figure visibility to "off"
+set(0,'DefaultFigureVisible','off')
 
 %% Start Parallel Pool
 gcp;
@@ -237,6 +238,11 @@ for cImage = 1:length(files)
     
     %% Background Removal
     
+    % Check if process is paused
+    if ~isempty(app)
+        checkPauseStopStatus(app)
+    end
+    
     delete(gca); close all;
     
     % 1st Round of pore detection/masking
@@ -269,6 +275,12 @@ for cImage = 1:length(files)
     z6 = imdilate(z5,strel('line',11,0));
     
     %% Flattened AFM Image
+    
+    % Check if process is paused
+    if ~isempty(app)
+        checkPauseStopStatus(app)
+    end
+    
     % 2nd Round of flattening and processing
     
     % Mask out pores and calculate mean height of each row
@@ -343,6 +355,11 @@ for cImage = 1:length(files)
     
     %% Isolate Pore Image
     
+    % Check if process is paused
+    if ~isempty(app)
+        checkPauseStopStatus(app)
+    end
+    
     delete(gca); close all;
     
     cc = bwconncomp(z7, 4);
@@ -403,6 +420,11 @@ for cImage = 1:length(files)
     
     %% Characterize Objects
     
+    % Check if process is paused
+    if ~isempty(app)
+        checkPauseStopStatus(app)
+    end
+    
     delete(gca); close all;
     
     % Generate new indices after watershedding and size-filtering
@@ -427,7 +449,7 @@ for cImage = 1:length(files)
     
     %% Pore classification  by saved excel table or user input
     switch mode
-        case "FullAnalysis"
+        case "Full Analysis"
             
             if usePoreTypes % Saved in csv file
                 PT_index = find(strcmp(PT_filenames,files(cImage).name)); % After 1st run, can list specific auto-detected pores to ignore (Make sure to put in increasing order)
@@ -535,8 +557,13 @@ for cImage = 1:length(files)
     
     %% Labeled Image
     
+    % Check if process is paused
+    if ~isempty(app)
+        checkPauseStopStatus(app)
+    end
+    
     switch mode
-        case "FullAnalysis"
+        case "Full Analysis"
             
             % Create new image to be labeled in below loop
             im6 = im4;
@@ -606,7 +633,7 @@ for cImage = 1:length(files)
             pubPores.X = pores.X;
             
             imwrite(im6,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_12_labeled.png']),'png');
-        case "SurfaceCoverage"
+        case "Surface Coverage"
             pores = struct;
             pores.maxDepth = zeros(1,length(S2));
             pores.maxHeight = zeros(1,length(S2));
@@ -627,8 +654,13 @@ for cImage = 1:length(files)
     
     %% 3D Pore Plots
     
+    % Check if process is paused
+    if ~isempty(app)
+        checkPauseStopStatus(app)
+    end
+    
     switch mode
-        case "FullAnalysis"
+        case "Full Analysis"
             delete(gca); close all;
             
             % [3D SURF] Save individual pore surface plots
@@ -647,8 +679,13 @@ for cImage = 1:length(files)
     
     %% 2D Pore Plots
     
+    % Check if process is paused
+    if ~isempty(app)
+        checkPauseStopStatus(app)
+    end
+    
     switch mode
-        case "FullAnalysis"
+        case "Full Analysis"
             delete(gca); close all;
             
             % CHANGE 05.04.2019: revert to individual plots to use with report
@@ -695,8 +732,13 @@ for cImage = 1:length(files)
     
     %% Pore Cross-Sections
     
+    % Check if process is paused
+    if ~isempty(app)
+        checkPauseStopStatus(app)
+    end
+    
     switch mode
-        case "FullAnalysis"
+        case "Full Analysis"
             delete(gca); close all;
             
             
@@ -949,10 +991,15 @@ for cImage = 1:length(files)
     
     %% Write report
     
+    % Check if process is paused
+    if ~isempty(app)
+        checkPauseStopStatus(app)
+    end
+    
     switch mode
-        case "FullAnalysis"
+        case "Full Analysis"
             GSDMx_reportGenerator(files(cImage),outDirPrepend,T,surfCov);
-        case "SurfaceCoverage"
+        case "Surface Coverage"
             GSDMx_reportGenerator_surfCov(files(cImage),outDirPrepend,Tcov);
     end
     mlreportgen.utils.rptviewer.closeAll()
@@ -960,11 +1007,18 @@ for cImage = 1:length(files)
     %% Update waitbar
     
     fprintf("%i/%i\n",cImage,length(files))
+    
+    % Update App progressbar (royalblue)
+    currentProg = min(round((size(app.AnalyzeButton.Icon,2)-2)*(cImage/app.numImages)),size(app.AnalyzeButton.Icon,2)-2);
+    app.AnalyzeButton.Icon(2:end-1, 2:currentProg+1, 1) = 0.25391;
+    app.AnalyzeButton.Icon(2:end-1, 2:currentProg+1, 2) = 0.41016;
+    app.AnalyzeButton.Icon(2:end-1, 2:currentProg+1, 3) = 0.87891;
 end
 toc
 
 %% After processing all data, run R Script to generate summary statistics with figures
 
 
-%% Change back to old directory at end of script
-cd(oldDir)
+
+end
+

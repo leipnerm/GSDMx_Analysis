@@ -1,0 +1,98 @@
+<deployment-project plugin="plugin.apptool" plugin-version="1.0">
+  <configuration build-checksum="4250972062" file="/Users/matt/Google_Drive/ETH_Zurich/MullerLab/MSc_Thesis/GSDMx_Analysis_MASTER/GSDMx_Analysis.prj" location="/Users/matt/Google_Drive/ETH_Zurich/MullerLab/MSc_Thesis/GSDMx_Analysis_MASTER" name="GSDMx_Analysis" target="target.mlapps" target-name="Package App">
+    <param.appname>GSDMx_Analysis</param.appname>
+    <param.authnamewatermark>Matthew Leipner</param.authnamewatermark>
+    <param.email>leipnerm@ethz.ch</param.email>
+    <param.company>ETH Zürich</param.company>
+    <param.icon />
+    <param.icons />
+    <param.summary />
+    <param.description>A custom app written to analyze AFM data of GSDMx proteins.</param.description>
+    <param.screenshot>/private/var/folders/nh/pdftv88d6pl55w721v9zjcdh0000gn/T/tpf52f56be_2d45_4945_912c_311352d9de09.png</param.screenshot>
+    <param.version>1.0</param.version>
+    <param.products.name>
+      <item>MATLAB</item>
+      <item>Computer Vision Toolbox</item>
+      <item>Curve Fitting Toolbox</item>
+      <item>Image Processing Toolbox</item>
+      <item>MATLAB Report Generator</item>
+      <item>Parallel Computing Toolbox</item>
+    </param.products.name>
+    <param.products.id>
+      <item>1</item>
+      <item>96</item>
+      <item>60</item>
+      <item>17</item>
+      <item>44</item>
+      <item>80</item>
+    </param.products.id>
+    <param.products.version>
+      <item>9.10</item>
+      <item>10.0</item>
+      <item>3.5.13</item>
+      <item>11.3</item>
+      <item>5.10</item>
+      <item>7.4</item>
+    </param.products.version>
+    <param.platforms />
+    <param.output>${PROJECT_ROOT}</param.output>
+    <param.guid>10ce4b4a-c489-4986-a9bb-03b00eaa2610</param.guid>
+    <unset>
+      <param.icon />
+      <param.icons />
+      <param.summary />
+      <param.version />
+      <param.platforms />
+      <param.output />
+    </unset>
+    <fileset.main>
+      <file>${PROJECT_ROOT}/GSDMx_Analysis.mlapp</file>
+    </fileset.main>
+    <fileset.depfun>
+      <file>/Users/matt/Library/Application Support/MathWorks/MATLAB Add-Ons/Apps/GSDMx_Analysis/DataProcessing/20210519_Analysis_ML/resources/MATLAB_helper_scripts/GSDMx_reportGenerator.m</file>
+      <file>/Users/matt/Library/Application Support/MathWorks/MATLAB Add-Ons/Apps/GSDMx_Analysis/DataProcessing/20210519_Analysis_ML/resources/MATLAB_helper_scripts/GSDMx_reportGenerator_surfCov.m</file>
+      <file>/Users/matt/Library/Application Support/MathWorks/MATLAB Add-Ons/Apps/GSDMx_Analysis/DataProcessing/20210519_Analysis_ML/resources/MATLAB_helper_scripts/InterX.m</file>
+      <file>/Users/matt/Library/Application Support/MathWorks/MATLAB Add-Ons/Apps/GSDMx_Analysis/DataProcessing/20210519_Analysis_ML/resources/MATLAB_helper_scripts/nanoscope6/di_header_find.m</file>
+      <file>/Users/matt/Library/Application Support/MathWorks/MATLAB Add-Ons/Apps/GSDMx_Analysis/DataProcessing/20210519_Analysis_ML/resources/MATLAB_helper_scripts/nanoscope6/extract_num.m</file>
+      <file>/Users/matt/Library/Application Support/MathWorks/MATLAB Add-Ons/Apps/GSDMx_Analysis/DataProcessing/20210519_Analysis_ML/resources/MATLAB_helper_scripts/nanoscope6/openNano6.m</file>
+      <file>/Users/matt/Library/Application Support/MathWorks/MATLAB Add-Ons/Apps/GSDMx_Analysis/DataProcessing/20210519_Analysis_ML/resources/MATLAB_helper_scripts/natsort.m</file>
+      <file>/Users/matt/Library/Application Support/MathWorks/MATLAB Add-Ons/Apps/GSDMx_Analysis/DataProcessing/20210519_Analysis_ML/resources/MATLAB_helper_scripts/natsortfiles.m</file>
+      <file>/Users/matt/Library/Application Support/MathWorks/MATLAB Add-Ons/Apps/GSDMx_Analysis/GSDMx_Analysis_MASTER/workflow/GSDMx_App_Analysis.m</file>
+    </fileset.depfun>
+    <fileset.resources>
+      <file>${PROJECT_ROOT}/resources</file>
+      <file>${PROJECT_ROOT}/workflow</file>
+    </fileset.resources>
+    <fileset.package />
+    <build-deliverables>
+      <file location="/Users/matt/Google_Drive/ETH_Zurich/MullerLab/MSc_Thesis" name="GSDMx_Analysis_MASTER" optional="false">/Users/matt/Google_Drive/ETH_Zurich/MullerLab/MSc_Thesis/GSDMx_Analysis_MASTER</file>
+    </build-deliverables>
+    <workflow />
+    <matlab>
+      <root>/Applications/MATLAB_R2021a.app</root>
+      <toolboxes>
+        <toolbox name="neuralnetwork" />
+      </toolboxes>
+      <toolbox>
+        <neuralnetwork>
+          <enabled>true</enabled>
+        </neuralnetwork>
+      </toolbox>
+    </matlab>
+    <platform>
+      <unix>true</unix>
+      <mac>true</mac>
+      <windows>false</windows>
+      <win2k>false</win2k>
+      <winxp>false</winxp>
+      <vista>false</vista>
+      <linux>false</linux>
+      <solaris>false</solaris>
+      <osver>10.16</osver>
+      <os32>false</os32>
+      <os64>true</os64>
+      <arch>maci64</arch>
+      <matlab>true</matlab>
+    </platform>
+  </configuration>
+</deployment-project>
