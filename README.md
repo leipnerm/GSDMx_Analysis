@@ -16,7 +16,10 @@ Matthew Leipner
 * [License](#license)
 
 # INTRODUCTION
-A fully automated analysis pipeline to take unprocessed, raw AFM data of GSDMx proteins (ie. no flattening or adjustments of any sort) and fully characterize and classify individual oligomers, generate summary statistics by oligmer subtype (arc, ring, slit) and pre-pore/pore classification (transmembrane or not). Options for time-lapse tracking on individual oligomers to identify stages of pore development will also be made available (currently WIP).
+A fully automated analysis pipeline to take unprocessed, raw AFM data of GSDMx proteins (ie. no flattening or adjustments of any sort) and fully characterize and classify individual oligomers, generate summary statistics by oligmer subtype (arc, ring, slit) and pre-pore/pore classification (transmembrane or not). Options for the following modes:
+* Surface Coverage Analysis (only)
+* Manual Full Analysis
+* Automatic Full Analysis
 
 # REQUIREMENTS
 * MATLAB Toolboxes/Add-Ons
@@ -44,15 +47,10 @@ A fully automated analysis pipeline to take unprocessed, raw AFM data of GSDMx p
     git clone https://github.com/xanubsl/GSDMx_Analysis.git
     ```
     
-2. TBD
+2. Open the "GSDMx_Analysis.mlapp" to start the program
     
 # USAGE
 1. TBD
-
-# PIPELINE OVERVIEW
-
-TBD
-
 
 # OUTPUT FILES
 ```
@@ -64,10 +62,26 @@ analysis
 |    20191119_cpd129_..._b.001.fig
 |    ...
 |
+----oligomer_data
+|    |
+|    20191119_cpd129_..._b.000_statsTable.txt
+|    20191119_cpd129_..._b.001_statsTable.txt
+|    ...
+|
 ----oligomer_profiles
 |    |
 |    20191119_cpd129_..._b.000.mat
 |    20191119_cpd129_..._b.001.mat
+|    ...
+|
+----R_Figures
+|    |
+|    All_Pores_Raw_Data.csv
+|    Diameter_Stats.csv
+|    Height_Stats.csv
+|    MajorAxis_Stats.csv
+|    Height_Distribution_Composite.csv
+|    MajorAxis_Distribution_Composite.csv
 |    ...
 |
 ----report_images
@@ -88,11 +102,6 @@ analysis
 |    |
 |    20191119_cpd129_..._b.000.pdf
 |    20191119_cpd129_..._b.001.pdf
-|    ...
-|
-----R_Figures
-|    |
-|    figure1.png
 |    ...
 |
 ----surfCoverage.csv
