@@ -34,6 +34,8 @@ library(ggsn)
 library(cowplot)
 library(extrafont)
 library(R.matlab)
+library(gridExtra)
+library(grid)
 
 options(warn=-1)
 opts_chunk$set(tidy.opts=list(width.cutoff=80),tidy=TRUE)
@@ -68,11 +70,11 @@ ylabel_size = 38
 ```{r Data Import 1, echo=FALSE}
 # DATA IMPORT
 # Import matlab pore files
-matlab_dir <- "./../analysis/MATLAB_data"
+matlab_dir <- "./../analysis/oligomer_data/"
 
 fileList <- list.files(matlab_dir,"\\.mat",recursive = T,full.names = T)
 
-outdir <- "./../analysis/R_Figures"
+outdir <- "./../analysis/R_Figures/"
 
 dir.create(file.path(outdir), showWarnings = FALSE)
 
@@ -182,10 +184,7 @@ ggsave(filename = paste(outdir,"","oligomers_016_16-composite.png",sep=""),
 fileList <- list.files(matlab_dir,"\\.txt")
 
 # Extract image labels
-labelList <- sapply(strsplit(fileList,"\\.tsv"),'[',1) %>%
-  {sapply(strsplit((.),"Height_"),'[',2)} %>%
-  {sub('[_][^_]+$', '',(.))}
-
+labelList <- sapply(strsplit(fileList,"\\_statsTable.txt"),'[',1)
 
 df <- data.frame(matrix(ncol = 7, nrow = 0))
 for(i in 1:length(fileList)){
@@ -288,7 +287,7 @@ library(tidyverse)
 
 bw <- 0.2  # Bin width for histogram
 
-df_plot <- df[,c(4,13)] %>% 
+df_plot <- df[,c('Height','poreTypes')] %>% 
   group_by(poreTypes) %>% 
   nest(Height) %>% 
   mutate(y = map(data, ~ dnorm(
@@ -371,7 +370,7 @@ means_diameter$label2 <- paste("n<",means_diameter$n,">",sep="")
 
 bw <- 2  # Bin width for histogram
 
-df_plot_Diameter <- df[,c(3,13)] %>% 
+df_plot_Diameter <- df[,c('Diameter','poreTypes')] %>% 
   group_by(poreTypes) %>% 
   nest(Diameter) %>% 
   mutate(y = map(data, ~ dnorm(
@@ -451,7 +450,7 @@ bw <- 3  # Bin width for histogram
 
 # Major Axis Districbutions
 # calculate normal curve overlay
-df_plot_major_axis <- df[,c(11,13)] %>% 
+df_plot_major_axis <- df[,c('MajorAxis','poreTypes')] %>% 
   group_by(poreTypes) %>% 
   nest(MajorAxis) %>% 
   mutate(y = map(data, ~ dnorm(
@@ -509,7 +508,7 @@ ggsave(filename = paste(outdir,"","MajorAxis_Distribution_Composite.png",sep="")
        width = 68 , height = 16,units = "cm")
 
 # Major axis outlier detection
-df_plot_major_axis <- df[,c(11,13)]
+df_plot_major_axis <- df[,c('MajorAxis','poreTypes')]
 
 outliers_arc <- df_plot_major_axis %>%
   filter(poreTypes == "Arc") %>%
@@ -629,14 +628,14 @@ ggsave(filename = paste(outdir,"","MajorAxis_Histograms.png",sep=""),
 
 
 # Proprosed whole figure 1
-library(gridExtra)
-
-g3 <- arrangeGrob(g,p_bar_height,
-                  layout_matrix = c(1,1,1,2),
-                  padding = 1)
-
-ggsave(g3, filename = paste(outdir,"","Figure_All_Composite.png",sep=""),
-       width = 68 , height = 32,units = "cm")
+# library(gridExtra)
+# 
+# g3 <- arrangeGrob(g,p_bar_height,
+#                   layout_matrix = c(1,1,1,2),
+#                   padding = 1)
+# 
+# ggsave(g3, filename = paste(outdir,"","Figure_All_Composite.png",sep=""),
+#        width = 68 , height = 32,units = "cm")
 
 ```
 

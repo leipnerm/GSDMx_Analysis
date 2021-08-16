@@ -1,4 +1,4 @@
-function GSDMx_reportGenerator_surfCov(file,outDirPrepend,Tcov)
+function GSDMx_reportGenerator_surfCov(file,outDirPrepend,Tcov,app)
 
 %% Preface
 %
@@ -50,110 +50,110 @@ add(R,toc);
 % s.PageMargins.Right = '.5in';
 
 % Add First Chapter on Raw AFM Image
-chapter1 = Chapter();
-chapter1.Title = 'Raw AFM Image';
+ChapterX = Chapter();
+ChapterX.Title = 'Raw AFM Image';
 im1 = FormalImage();
 im1.Image = [outDirPrepend,'/report_images/',file.name,'/',file.name,'_1_raw.png'];
 %im1.Caption = 'Unflattened AFM Image';
-add(chapter1,im1);
-add(R,chapter1);
+add(ChapterX,im1);
+add(R,ChapterX);
 
 % Add Second Chapter on Flattened AFM Image
-chapter2 = Chapter();
-chapter2.Title = 'Flattened AFM Image';
+ChapterX = Chapter();
+ChapterX.Title = 'Flattened AFM Image';
 im2 = FormalImage();
 im2.Image = [outDirPrepend,'/report_images/',file.name,'/',file.name,'_2_flat.png'];
 %im2.Caption = 'Flattened AFM Image';
-add(chapter2,im2);
-add(R,chapter2);
+add(ChapterX,im2);
+add(R,ChapterX);
 
 % Add Third Chapter on all and isolated objects
-chapter3 = Chapter();
-chapter3.Title = 'All and Isolated Objects';
+ChapterX = Chapter();
+ChapterX.Title = 'All and Isolated Objects';
 im3 = FormalImage();
 im3.Image = [outDirPrepend,'/report_images/',file.name,'/',file.name,'_3_all.png'];
 im3.Caption = 'All Objects';
-add(chapter3,im3);
+add(ChapterX,im3);
 
 % p = Paragraph(['GSDMx coverage: ', num2str(round(Tcov{4}.*100,2)), '%']);
-% add(chapter3,p);
+% add(ChapterX,p);
 % 
 % im3 = FormalImage();
 % im3.Image = [outDirPrepend,'/report_images/',file.name,'/',file.name,'_4_isolated.png'];
 % im3.Caption = 'Isolated Objects';
-% add(chapter3,im3);
+% add(ChapterX,im3);
 
 
-add(R,chapter3);
+add(R,ChapterX);
 
 % % Add Fourth Chapter on Binarized AFM Image
-% chapter4 = Chapter();
-% chapter4.Title = 'Binarized and Watershedded Image';
+% ChapterX = Chapter();
+% ChapterX.Title = 'Binarized and Watershedded Image';
 % im4 = FormalImage();
 % im4.Image = [outDirPrepend,'/report_images/',file.name,'/',file.name,'_5_watershedded.png'];
-% add(chapter4,im4);
-% add(R,chapter4);
+% add(ChapterX,im4);
+% add(R,ChapterX);
 
 % ADDED 20210511: Add Fifth Chapter on overall Oligomer Coverage
-chapter5 = Chapter();
-chapter5.Title = 'Isolated Oligomers (within size, major axis, and height filters)';
+ChapterX = Chapter();
+ChapterX.Title = 'Isolated Oligomers (within size, major axis, and height filters)';
 im5 = FormalImage();
 im5.Image = [outDirPrepend,'/report_images/',file.name,'/',file.name,'_7_poreCoverage.png'];
-add(chapter5,im5);
-add(R,chapter5);
+add(ChapterX,im5);
+add(R,ChapterX);
 
 % % ADDED 20210511: Add Sixth Chapter on Defect Coverage
-% chapter6 = Chapter();
-% chapter6.Title = 'Defect coverage (outside of size, major axis, and height filters)';
+% ChapterX = Chapter();
+% ChapterX.Title = 'Defect coverage (outside of size, major axis, and height filters)';
 % im6 = FormalImage();
 % im6.Image = [outDirPrepend,'/report_images/',file.name,'/',file.name,'_8_membraneDefects.png'];
-% add(chapter6,im6);
-% add(R,chapter6);
+% add(ChapterX,im6);
+% add(R,ChapterX);
 
 % ADDED 20210511: Add Seventh Chapter on all "Low Coverage" and "High Coverage" Coverage
 % Low Coverage first
-chapter6 = Chapter();
-chapter6.Title = 'Oligomer coverage filtered by Height';
+ChapterX = Chapter();
+ChapterX.Title = 'Oligomer coverage filtered by Height';
 im6 = FormalImage();
 im6.Image = [outDirPrepend,'/report_images/',file.name,'/',file.name,'_9_lowCoverage.png'];
 im6.Caption = 'Low Coverage (below oligomerMaxHeight filter; currently 4nm)';
-add(chapter6,im6);
+add(ChapterX,im6);
 
 p = Paragraph(['GSDMx Low Coverage: ', num2str(round(Tcov{7}.*100,2)), '%']);
-add(chapter6,p);
+add(ChapterX,p);
 
 % Then high Coverage
 im7 = FormalImage();
 im7.Image = [outDirPrepend,'/report_images/',file.name,'/',file.name,'_10a_highCoverage.png'];
 im7.Caption = 'High Coverage (above oligoMaxHeight and below proteinMaxHeight filter; currently between 4-9nm)';
-add(chapter6,im7);
+add(ChapterX,im7);
 
 p = Paragraph(['GSDMx High Coverage: ', num2str(round(Tcov{8}.*100,2)), '%']);
-add(chapter6,p);
+add(ChapterX,p);
 
 % Then aggregate Coverage
 im8 = FormalImage();
 im8.Image = [outDirPrepend,'/report_images/',file.name,'/',file.name,'_10b_aggregateCoverage.png'];
 im8.Caption = 'Aggregate Coverage (above proteinMaxHeight filter; currently above 9nm)';
-add(chapter6,im8);
+add(ChapterX,im8);
 
 p = Paragraph(['GSDMx Aggregate Coverage: ', num2str(round(Tcov{9}.*100,2)), '%']);
-add(chapter6,p);
+add(ChapterX,p);
 
 % Then all Coverage
 im9 = FormalImage();
 im9.Image = [outDirPrepend,'/report_images/',file.name,'/',file.name,'_11_allCoverage.png'];
 im9.Caption = 'All Coverage (low, high, and aggregate together)';
-add(chapter6,im9);
+add(ChapterX,im9);
 
 p = Paragraph(['GSDMx All coverage: ', num2str(round(Tcov{10}.*100,2)), '%']);
-add(chapter6,p);
+add(ChapterX,p);
 
-add(R,chapter6);
+add(R,ChapterX);
 
-% Add Eight Chapter with Surface Coverage Statistics Table Only
-chapter8 = Chapter();
-chapter8.Title = 'Summary Statistics';
+%% Add Eighth Chapter with Surface Coverage Statistics Table Only
+ChapterX = Chapter();
+ChapterX.Title = 'Coverage Statistics';
 
 t8 = Table(9);
 %t7.Style = {OuterMargin('-0.3in')};
@@ -312,10 +312,144 @@ append(t8,tr);
 %     append(t8,tr);
 % end
 
-add(chapter8,t8);
-add(R,chapter8);
+add(ChapterX,t8);
+add(R,ChapterX);
 
-% Save and open report
+%% Paramter Summary
+% Add Final Chapter summarizing image analysis parameters
+ChapterX = Chapter();
+ChapterX.Title = 'Analysis Parameters';
+
+t9 = Table(9);
+%t7.Style = {OuterMargin('-0.3in')};
+t9.TableEntriesStyle = {FontFamily('Arial'),Width('1in')};
+
+% Add statistic labels to table
+tr = TableRow;
+p = Paragraph('Image');
+te = TableEntry(p);
+te.Style = {Width('2.5in')};
+append(tr, te);
+p = Paragraph(num2str(Tcov{1}));
+te = TableEntry(p);
+te.Style = {Width('4.5in')};
+append(tr, te);
+append(t9,tr);
+
+tr = TableRow;
+p = Paragraph('Group');
+te = TableEntry(p);
+te.Style = {Width('2.5in')};
+append(tr, te);
+p = Paragraph(num2str(Tcov{2}));
+te = TableEntry(p);
+te.Style = {Width('4.5in')};
+append(tr, te);
+append(t9,tr);
+
+tr = TableRow;
+p = Paragraph('Analysis Type');
+te = TableEntry(p);
+te.Style = {Width('2.5in')};
+append(tr, te);
+p = Paragraph(app.AnalysisType.Value);
+te = TableEntry(p);
+te.Style = {Width('4.5in')};
+append(tr, te);
+append(t9,tr);
+
+tr = TableRow;
+p = Paragraph('Oligo Max Height [nm]');
+te = TableEntry(p);
+te.Style = {Width('2.5in')};
+append(tr, te);
+p = Paragraph(num2str(app.OligoMaxHeight.Value));
+te = TableEntry(p);
+te.Style = {Width('4.5in')};
+append(tr, te);
+append(t9,tr);
+
+tr = TableRow;
+p = Paragraph('Protein Max Height [nm]');
+te = TableEntry(p);
+te.Style = {Width('2.5in')};
+append(tr, te);
+p = Paragraph(num2str(app.ProteinMaxHeight.Value));
+te = TableEntry(p);
+te.Style = {Width('4.5in')};
+append(tr, te);
+append(t9,tr);
+
+tr = TableRow;
+p = Paragraph('Small Size Filter [nm2]');
+te = TableEntry(p);
+te.Style = {Width('2.5in')};
+append(tr, te);
+p = Paragraph(num2str(app.SmallSizeFilter.Value));
+te = TableEntry(p);
+te.Style = {Width('4.5in')};
+append(tr, te);
+append(t9,tr);
+
+tr = TableRow;
+p = Paragraph('Large Size Filter [nm2]');
+te = TableEntry(p);
+te.Style = {Width('2.5in')};
+append(tr, te);
+p = Paragraph(num2str(app.LargeSizeFilter.Value));
+te = TableEntry(p);
+te.Style = {Width('4.5in')};
+append(tr, te);
+append(t9,tr);
+
+tr = TableRow;
+p = Paragraph('Max Major Axis [nm]');
+te = TableEntry(p);
+te.Style = {Width('2.5in')};
+append(tr, te);
+p = Paragraph(num2str(app.MaxMajorAxis.Value));
+te = TableEntry(p);
+te.Style = {Width('4.5in')};
+append(tr, te);
+append(t9,tr);
+
+tr = TableRow;
+p = Paragraph('Min Circularity [-]');
+te = TableEntry(p);
+te.Style = {Width('2.5in')};
+append(tr, te);
+p = Paragraph(num2str(app.MinCircularity.Value));
+te = TableEntry(p);
+te.Style = {Width('4.5in')};
+append(tr, te);
+append(t9,tr);
+
+tr = TableRow;
+p = Paragraph('Use Pore Types');
+te = TableEntry(p);
+te.Style = {Width('2.5in')};
+append(tr, te);
+p = Paragraph(num2str(app.UsePoreTypes.Value));
+te = TableEntry(p);
+te.Style = {Width('4.5in')};
+append(tr, te);
+append(t9,tr);
+
+tr = TableRow;
+p = Paragraph('Use Old Flattening');
+te = TableEntry(p);
+te.Style = {Width('2.5in')};
+append(tr, te);
+p = Paragraph(num2str(app.UseOldFlattening.Value));
+te = TableEntry(p);
+te.Style = {Width('4.5in')};
+append(tr, te);
+append(t9,tr);
+
+add(ChapterX,t9);
+add(R,ChapterX);
+
+%% Save and open report
 rptview(R);
 
 end

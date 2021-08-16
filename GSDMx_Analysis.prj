@@ -1,5 +1,5 @@
 <deployment-project plugin="plugin.apptool" plugin-version="1.0">
-  <configuration build-checksum="4250972062" file="/Users/matt/Google_Drive/ETH_Zurich/MullerLab/MSc_Thesis/GSDMx_Analysis_MASTER/GSDMx_Analysis.prj" location="/Users/matt/Google_Drive/ETH_Zurich/MullerLab/MSc_Thesis/GSDMx_Analysis_MASTER" name="GSDMx_Analysis" target="target.mlapps" target-name="Package App">
+  <configuration build-checksum="3650407522" file="/Users/matt/Google_Drive/ETH_Zurich/MullerLab/MSc_Thesis/GSDMx_Analysis_MASTER/GSDMx_Analysis.prj" location="/Users/matt/Google_Drive/ETH_Zurich/MullerLab/MSc_Thesis/GSDMx_Analysis_MASTER" name="GSDMx_Analysis" target="target.mlapps" target-name="Package App">
     <param.appname>GSDMx_Analysis</param.appname>
     <param.authnamewatermark>Matthew Leipner</param.authnamewatermark>
     <param.email>leipnerm@ethz.ch</param.email>
@@ -8,8 +8,8 @@
     <param.icons />
     <param.summary />
     <param.description>A custom app written to analyze AFM data of GSDMx proteins.</param.description>
-    <param.screenshot>/private/var/folders/nh/pdftv88d6pl55w721v9zjcdh0000gn/T/tpf52f56be_2d45_4945_912c_311352d9de09.png</param.screenshot>
-    <param.version>1.0</param.version>
+    <param.screenshot>/private/var/folders/nh/pdftv88d6pl55w721v9zjcdh0000gn/T/tp9bf3530a_b9eb_47cb_abb3_47be7e4b5baf.png</param.screenshot>
+    <param.version>1.3</param.version>
     <param.products.name>
       <item>MATLAB</item>
       <item>Computer Vision Toolbox</item>
@@ -41,24 +41,13 @@
       <param.icon />
       <param.icons />
       <param.summary />
-      <param.version />
       <param.platforms />
       <param.output />
     </unset>
     <fileset.main>
       <file>${PROJECT_ROOT}/GSDMx_Analysis.mlapp</file>
     </fileset.main>
-    <fileset.depfun>
-      <file>/Users/matt/Library/Application Support/MathWorks/MATLAB Add-Ons/Apps/GSDMx_Analysis/DataProcessing/20210519_Analysis_ML/resources/MATLAB_helper_scripts/GSDMx_reportGenerator.m</file>
-      <file>/Users/matt/Library/Application Support/MathWorks/MATLAB Add-Ons/Apps/GSDMx_Analysis/DataProcessing/20210519_Analysis_ML/resources/MATLAB_helper_scripts/GSDMx_reportGenerator_surfCov.m</file>
-      <file>/Users/matt/Library/Application Support/MathWorks/MATLAB Add-Ons/Apps/GSDMx_Analysis/DataProcessing/20210519_Analysis_ML/resources/MATLAB_helper_scripts/InterX.m</file>
-      <file>/Users/matt/Library/Application Support/MathWorks/MATLAB Add-Ons/Apps/GSDMx_Analysis/DataProcessing/20210519_Analysis_ML/resources/MATLAB_helper_scripts/nanoscope6/di_header_find.m</file>
-      <file>/Users/matt/Library/Application Support/MathWorks/MATLAB Add-Ons/Apps/GSDMx_Analysis/DataProcessing/20210519_Analysis_ML/resources/MATLAB_helper_scripts/nanoscope6/extract_num.m</file>
-      <file>/Users/matt/Library/Application Support/MathWorks/MATLAB Add-Ons/Apps/GSDMx_Analysis/DataProcessing/20210519_Analysis_ML/resources/MATLAB_helper_scripts/nanoscope6/openNano6.m</file>
-      <file>/Users/matt/Library/Application Support/MathWorks/MATLAB Add-Ons/Apps/GSDMx_Analysis/DataProcessing/20210519_Analysis_ML/resources/MATLAB_helper_scripts/natsort.m</file>
-      <file>/Users/matt/Library/Application Support/MathWorks/MATLAB Add-Ons/Apps/GSDMx_Analysis/DataProcessing/20210519_Analysis_ML/resources/MATLAB_helper_scripts/natsortfiles.m</file>
-      <file>/Users/matt/Library/Application Support/MathWorks/MATLAB Add-Ons/Apps/GSDMx_Analysis/GSDMx_Analysis_MASTER/workflow/GSDMx_App_Analysis.m</file>
-    </fileset.depfun>
+    <fileset.depfun />
     <fileset.resources>
       <file>${PROJECT_ROOT}/resources</file>
       <file>${PROJECT_ROOT}/workflow</file>

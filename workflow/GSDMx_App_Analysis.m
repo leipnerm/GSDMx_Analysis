@@ -84,6 +84,16 @@ DATA ACQUISITION and EXPERIMENTAL DESIGN:
 
 mode = app.AnalysisType.Value;
 
+switch mode
+    case "Manual Full Analysis"
+        useModelPrediction = false;
+        choosePoreTypes = true;
+    case 'Automated Full Analysis'
+        classifier = app.Classifier.Value;
+        choosePoreTypes = false;
+        useModelPrediction = true;
+end
+
 % Circularity Filter (will remove anything with circularity less than
 % this)
 minCirc = app.MinCircularity.Value;               % (default 0.3) Ratio of minor axis to major axis
@@ -105,8 +115,7 @@ smSizeFilter = app.SmallSizeFilter.Value;         % [nm2] (default: 374 for 700n
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % SET INPUT poreTypes CSV and flag whether or not to use (leave as FALSE if pores have not yet been classified)
-usePoreTypes = app.UsePoreTypes.Value;
-choosePoreTypes = false;
+usePoreTypes = false; %app.UsePoreTypes.Value;
 
 % SET OUTPUT DIRECTORY
 outDirPrepend = app.outDir;
@@ -124,7 +133,8 @@ new_flat = ~app.UseOldFlattening.Value;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Add path to supporting matlab files
-addpath(genpath('./../resources/MATLAB_helper_scripts'));
+addpath(genpath('./resources'));
+load('resources/ensembleBaggedTreesModel_trained.mat')
 
 % UPDATED 20210511: searched recursively through all subdir in inputDir
 % Get list of all raw AFM files to analyze this run (.000, .001, etc. suffix)
@@ -167,8 +177,9 @@ oldDir = pwd;
 [~,~,~] = mkdir([outDirPrepend '/reports']);
 
 switch mode
-    case "Full Analysis"
+    case {'Automated Full Analysis','Manual Full Analysis'}
         [~,~,~] = mkdir([outDirPrepend '/oligomer_profiles']);
+        [~,~,~] = mkdir([outDirPrepend '/oligomer_data']);
         [~,~,~] = mkdir([outDirPrepend '/summary_txt']);
 end
 
@@ -180,7 +191,11 @@ gcp;
 
 %% Run below code for each image
 tic
-for cImage = 1:length(files)
+for cImage = app.selectedFiles
+    %% Remove old image folder if it exists
+    if isfolder([outDirPrepend,'/report_images/',files(cImage).name])
+        rmdir([outDirPrepend,'/report_images/',files(cImage).name],'s');
+    end
     
     %% Raw AFM Image
     
@@ -235,22 +250,21 @@ for cImage = 1:length(files)
     %title('Raw AFM Image');
     exportgraphics(gcf,fullfile([outDirPrepend,'/report_images/',files(cImage).name,'/',files(cImage).name,'_1_raw.png']));
     
-    
     %% Background Removal
     
     % Check if process is paused
-    if ~isempty(app)
+    if ~isempty(app) && ~isstruct(app)
         checkPauseStopStatus(app)
     end
     
     delete(gca); close all;
     
     % 1st Round of pore detection/masking
-    %     if new_flat
-    %         background = imopen(z, strel('cube', 20));
-    %     else
-    background = imopen(z, strel('line', 100,0));
-    %     end
+    if new_flat
+        background = imopen(z, strel('cube', 20));
+    else
+        background = imopen(z, strel('line', 100,0));
+    end
     z2 = z - background;
     % Blur image to help with binarization
     z3 = imfilter(z2, fspecial('average',3), 'symmetric');
@@ -264,11 +278,9 @@ for cImage = 1:length(files)
     cc = bwconncomp(z5, 4);
     objSizes = cellfun('length',cc.PixelIdxList);
     noise = objSizes < smObj;
-    
-    % Show only objects/pores detected as within the desired size range
     for i = find(noise)
-        z4(cc.PixelIdxList{i}) = false;
         z5(cc.PixelIdxList{i}) = false;
+        z4(cc.PixelIdxList{i}) = false;
     end
     
     % Dilate image a bit to ensure complete pore coverage
@@ -277,7 +289,7 @@ for cImage = 1:length(files)
     %% Flattened AFM Image
     
     % Check if process is paused
-    if ~isempty(app)
+    if ~isempty(app) && ~isstruct(app)
         checkPauseStopStatus(app)
     end
     
@@ -313,7 +325,9 @@ for cImage = 1:length(files)
     end
     
     % Find background from
-    background2 = imopen(im, strel('line', 20,0));
+    
+    %background2 = imopen(im, strel('line', 20,0));
+    background2 = imopen(im, strel('line', 100,0));
     %background2 = imopen(im, strel('cube', 20));
     
     im2 = z-background2;
@@ -350,13 +364,13 @@ for cImage = 1:length(files)
     z7(Ld == 0) = 0;
     
     % Watershedding non-filled pores
-    z9 = z4;
-    z9(Ld == 0) = 0;
+    z7_nofill = z4;
+    z7_nofill(Ld == 0) = 0;
     
     %% Isolate Pore Image
     
     % Check if process is paused
-    if ~isempty(app)
+    if ~isempty(app) && ~isstruct(app)
         checkPauseStopStatus(app)
     end
     
@@ -368,12 +382,13 @@ for cImage = 1:length(files)
     membraneDefects = objSizes > lgObj;
     
     % Show only objects/pores detected as within the desired size range
-    z8 = false(size(z7));
+    z8 = z7;
+    z8_nofill = z7_nofill;
     z20 = false(size(z7));
-    for i = find(singlePores)
-        if max(im4(cc.PixelIdxList{i})) <= oligoMaxHeight
-            z8(cc.PixelIdxList{i}) = true;
-        else
+    for i = find(~singlePores)
+        z8(cc.PixelIdxList{i}) = false;
+        z8_nofill(cc.PixelIdxList{i}) = false;
+        if max(im4(cc.PixelIdxList{i})) > oligoMaxHeight
             z20(cc.PixelIdxList{i}) = true;
             membraneDefects(i) = true;
         end
@@ -385,16 +400,6 @@ for cImage = 1:length(files)
     end
     
     imwrite(z20,fullfile([outDirPrepend,'/report_images/',files(cImage).name,'/',files(cImage).name,'_8_membraneDefects.png']),'png');
-    
-    % Added 2020.11.17: size select non-filled objects
-    cc_nofill = bwconncomp(z9, 4);
-    cc_nofill_sizes = cellfun('length',cc_nofill.PixelIdxList);
-    cc_nofill_single = cc_nofill_sizes < lgObj & cc_nofill_sizes > smObj;
-    
-    z11 = false(size(z7));
-    for i = find(cc_nofill_single)
-        z11(cc_nofill.PixelIdxList{i}) = true;
-    end
     
     % Save image showing all pores (2D projection)
     figure; imshow(im4); colormap copper;
@@ -416,12 +421,12 @@ for cImage = 1:length(files)
     
     delete(gca); close all;
     
-    imwrite(z8,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_5_watershedded.png']),'png');
+    imwrite(z8_nofill,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_5_watershedded.png']),'png');
     
     %% Characterize Objects
     
     % Check if process is paused
-    if ~isempty(app)
+    if ~isempty(app) && ~isstruct(app)
         checkPauseStopStatus(app)
     end
     
@@ -429,27 +434,62 @@ for cImage = 1:length(files)
     
     % Generate new indices after watershedding and size-filtering
     cc2 = bwconncomp(z8, 4);
+    cc2_nofill = bwconncomp(z8_nofill, 4);
     % Get center coordinates of pores of interest
     S = struct2cell(regionprops(cc2,'Centroid'));
+    S_nofill = struct2cell(regionprops(cc2_nofill,'Centroid'));
     % Round center coordinates to nearest pixel
     S2 = cellfun(@round,S,'UniformOutput', false);
+    S2_nofill = cellfun(@round,S_nofill,'UniformOutput', false);
     
     % ADDED 2020.11.17: Get major and minor Axis Lengths
     %cc_nofill2 = bwconncomp(z11, 4);
-    stats = regionprops(z8,'Centroid','MajorAxisLength','MinorAxisLength','Circularity','Orientation','Perimeter');
+    stats = regionprops(cc2,'Centroid','MajorAxisLength','MinorAxisLength','Orientation','Circularity');
+    stats_nofill = regionprops(cc2_nofill,'Centroid','MajorAxisLength','MinorAxisLength','Circularity','Orientation','Perimeter','Eccentricity','Area');
+    
+    % Check if size of stats and stats_nofill do not match, if so it's
+    % likely because of a small, but separate region inside of another
+    % region (think of a portion of the lipid bilayer inside of a forming
+    % pore. This can be assumed to be the smallest region, so remove the
+    % smallest regions from stats_nofill until size matches
+    if length(stats) ~= length(stats_nofill)
+        while length(stats_nofill) > length(stats)
+            [~,idx] = min([stats_nofill.Area]);
+            cc2_nofill.PixelIdxList(idx) = [];
+            S_nofill(idx) = [];
+            S2_nofill(idx) = [];
+            stats_nofill(idx) = [];
+        end
+    end
     
     % ADDED 2021.02.09: Filter out skinny, long defects along horizontal axis in pore isolation
     % Show only objects/pores detected as within the desired size range
+    % ADDED 2021.06.10: Remove detected defects from stats and ellipse plotting
+    %                   Checks for oligomers at right and left side of
+    %                   image and removed them for lack of complete capture
+    defects = find([stats.Circularity] < minCirc | (round([stats.MajorAxisLength]'.*100.*imSize./samplePoints)./100 > maxAxisLength)' |...
+        (arrayfun(@(stats) stats.Centroid(1), stats)'-[stats.MajorAxisLength]/2) <= 0 |...
+        (arrayfun(@(stats) stats.Centroid(1), stats)'+[stats.MajorAxisLength]/2) >= samplePoints);
     z12 = false(size(z8));
-    for i = find([stats.Circularity] > minCirc & (round([stats.MajorAxisLength]'.*100.*imSize./samplePoints)./100 < maxAxisLength)')
+    for i = setdiff(1:length(S2), defects)
         z12(cc2.PixelIdxList{i}) = true;
+    end
+    for i = flip(defects)
+        z8(cc.PixelIdxList{i}) = false;
+        z8_nofill(cc.PixelIdxList{i}) = false;
+        S2(i) = [];
+        S2_nofill(i) = [];
+        cc2.PixelIdxList(i) = [];
+        cc2_nofill.PixelIdxList(i) = [];
+        stats(i) = [];
+        stats_nofill(i) = [];
     end
     
     imwrite(z12,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_7_poreCoverage.png']),'png');
     
     %% Pore classification  by saved excel table or user input
     switch mode
-        case "Full Analysis"
+        case {'Manual Full Analysis'}
             
             if usePoreTypes % Saved in csv file
                 PT_index = find(strcmp(PT_filenames,files(cImage).name)); % After 1st run, can list specific auto-detected pores to ignore (Make sure to put in increasing order)
@@ -458,6 +498,7 @@ for cImage = 1:length(files)
                 poreTypes(ignoredPores) = [];
             elseif choosePoreTypes
                 oligoTypes = zeros(length(S2),1);
+                set(0,'DefaultFigureVisible','on')
                 for i = 1:length(S2)
                     % Show oligo under consideration
                     figure;
@@ -472,8 +513,14 @@ for cImage = 1:length(files)
                     % Close open image
                     delete(gca); close all;
                 end
+                set(0,'DefaultFigureVisible','off')
                 poreTypes = oligoTypes;
                 ignoredPores = find(poreTypes == 1);
+                
+                % Save poreTypes for future use
+                [~,~,~] = mkdir([outDirPrepend '/poreTypes_txt']);
+                dlmwrite([outDirPrepend,'/poreTypes_txt/',files(cImage).name,'_poreTypes.txt'],a)
+                
                 poreTypes(ignoredPores) = [];
             else
                 poreTypes = zeros(length(S2),1) + 2;
@@ -488,14 +535,23 @@ for cImage = 1:length(files)
             OGLabel = 1:length(S2);
             for i = flip(ignoredPores)
                 S2(i) = [];
+                S2_nofill(i) = [];
                 cc2.PixelIdxList(i) = [];
+                cc2_nofill.PixelIdxList(i) = [];
                 stats(i) = [];
+                stats_nofill(i) = [];
                 OGLabel(i) = [];
             end
-            
-            %% Perimeter and Axis Labeled Image
-            % Added 2020.11.17
-            
+        case 'Automated Full Analysis'
+            % Initialize an empty ignorepores
+            ignoredPores = [];
+    end
+    
+    %% Perimeter and Axis Labeled Image
+    % Added 2020.11.17
+    
+    switch mode
+        case {'Automated Full Analysis','Manual Full Analysis'}
             figure; imshow(im4); colormap copper; %Use for colored image
             %figure; imshow(z8)
             hold on
@@ -558,32 +614,32 @@ for cImage = 1:length(files)
     %% Labeled Image
     
     % Check if process is paused
-    if ~isempty(app)
+    if ~isempty(app) && ~isstruct(app)
         checkPauseStopStatus(app)
     end
     
     switch mode
-        case "Full Analysis"
+        case {'Automated Full Analysis','Manual Full Analysis'}
             
             % Create new image to be labeled in below loop
             im6 = im4;
-            % Pre-allocate structure memory for individual, isolated pores
-            pores = struct;
-            pores.X = cell(1,length(S2));
-            pores.Y = cell(1,length(S2));
-            pores.Z = cell(1,length(S2));
-            pores.CS = cell(4,length(S2));
-            pores.maxDepth = zeros(1,length(S2));
-            pores.maxHeight = zeros(1,length(S2));
+            % Pre-allocate structure memory for individual, isolated oligomer
+            oligomer = struct;
+            oligomer.X = cell(1,length(S2));
+            oligomer.Y = cell(1,length(S2));
+            oligomer.Z = cell(1,length(S2));
+            oligomer.CS = cell(4,length(S2));
+            oligomer.maxDepth = zeros(1,length(S2));
+            oligomer.maxHeight = zeros(1,length(S2));
             
-            % 20200603 Pre-allocate structure memory for non-isolated pores,
+            % 20200603 Pre-allocate structure memory for non-isolated oligomer,
             % for publication
-            pubPores = struct;
-            pubPores.CS = cell(4,length(S2));
+            puboligomer = struct;
+            puboligomer.CS = cell(4,length(S2));
             
             % Generate 101x101 pixel boxes centered around pore center coordinates
             % ADDED 2020.11.16: Additionally searches to global min inside each
-            % oligomer based on z10 area -> stored in pores.maxDepth
+            % oligomer based on z10 area -> stored in oligomer.maxDepth
             for i = 1:length(S2)
                 
                 % Isolate pore by setting all other pores temporarily to 0
@@ -594,11 +650,11 @@ for cImage = 1:length(files)
                 im7(z8 ~= z10) = 0;
                 
                 % Plot matrices
-                pores.X{i} = x(max(S2{i}(2)-scaleFactor,1):min(S2{i}(2)+scaleFactor,samplePoints),...
+                oligomer.X{i} = x(max(S2{i}(2)-scaleFactor,1):min(S2{i}(2)+scaleFactor,samplePoints),...
                     max(S2{i}(1)-scaleFactor,1):min(S2{i}(1)+scaleFactor,samplePoints));
-                pores.Y{i} = y(max(S2{i}(2)-scaleFactor,1):min(S2{i}(2)+scaleFactor,samplePoints),...
+                oligomer.Y{i} = y(max(S2{i}(2)-scaleFactor,1):min(S2{i}(2)+scaleFactor,samplePoints),...
                     max(S2{i}(1)-scaleFactor,1):min(S2{i}(1)+scaleFactor,samplePoints));
-                pores.Z{i} = im7(max(S2{i}(2)-scaleFactor,1):min(S2{i}(2)+scaleFactor,samplePoints),...
+                oligomer.Z{i} = im7(max(S2{i}(2)-scaleFactor,1):min(S2{i}(2)+scaleFactor,samplePoints),...
                     max(S2{i}(1)-scaleFactor,1):min(S2{i}(1)+scaleFactor,samplePoints));
                 
                 % Cross sections (by row:
@@ -607,22 +663,22 @@ for cImage = 1:length(files)
                 %   cross section 2,
                 %   cross section 3,
                 %   mean of 3 cross-sections)
-                pores.CS{1,i} = x(S2{i}(2),max(S2{i}(1)-scaleFactor,1):min(S2{i}(1)+scaleFactor,samplePoints));
-                pores.CS{2,i} = im7(S2{i}(2)-1,max(S2{i}(1)-scaleFactor,1):min(S2{i}(1)+scaleFactor,samplePoints));
-                pores.CS{3,i} = im7(S2{i}(2),max(S2{i}(1)-scaleFactor,1):min(S2{i}(1)+scaleFactor,samplePoints));
-                pores.CS{4,i} = im7(S2{i}(2)+1,max(S2{i}(1)-scaleFactor,1):min(S2{i}(1)+scaleFactor,samplePoints));
-                pores.CS{5,i} = (pores.CS{2,i}+pores.CS{3,i}+pores.CS{4,i})./3;
+                oligomer.CS{1,i} = x(S2{i}(2),max(S2{i}(1)-scaleFactor,1):min(S2{i}(1)+scaleFactor,samplePoints));
+                oligomer.CS{2,i} = im7(S2{i}(2)-1,max(S2{i}(1)-scaleFactor,1):min(S2{i}(1)+scaleFactor,samplePoints));
+                oligomer.CS{3,i} = im7(S2{i}(2),max(S2{i}(1)-scaleFactor,1):min(S2{i}(1)+scaleFactor,samplePoints));
+                oligomer.CS{4,i} = im7(S2{i}(2)+1,max(S2{i}(1)-scaleFactor,1):min(S2{i}(1)+scaleFactor,samplePoints));
+                oligomer.CS{5,i} = (oligomer.CS{2,i}+oligomer.CS{3,i}+oligomer.CS{4,i})./3;
                 
                 % 20201116 Save max depth within detected oligomer
-                pores.maxDepth(i) = min(im7(z10));
-                pores.maxHeight(i) = max(im7(z10));
+                oligomer.maxDepth(i) = min(im7(z10));
+                oligomer.maxHeight(i) = max(im7(z10));
                 
-                % 20200603 save data to pubPores for later figure generation in R
-                pubPores.CS{1,i} = pores.CS{1,i};
-                pubPores.CS{2,i} = im4(S2{i}(2)-1,max(S2{i}(1)-scaleFactor,1):min(S2{i}(1)+scaleFactor,samplePoints));
-                pubPores.CS{3,i} = im4(S2{i}(2),max(S2{i}(1)-scaleFactor,1):min(S2{i}(1)+scaleFactor,samplePoints));
-                pubPores.CS{4,i} = im4(S2{i}(2)+1,max(S2{i}(1)-scaleFactor,1):min(S2{i}(1)+scaleFactor,samplePoints));
-                pubPores.CS{5,i} = (pubPores.CS{2,i}+pubPores.CS{3,i}+pubPores.CS{4,i})./3;
+                % 20200603 save data to puboligomer for later figure generation in R
+                puboligomer.CS{1,i} = oligomer.CS{1,i};
+                puboligomer.CS{2,i} = im4(S2{i}(2)-1,max(S2{i}(1)-scaleFactor,1):min(S2{i}(1)+scaleFactor,samplePoints));
+                puboligomer.CS{3,i} = im4(S2{i}(2),max(S2{i}(1)-scaleFactor,1):min(S2{i}(1)+scaleFactor,samplePoints));
+                puboligomer.CS{4,i} = im4(S2{i}(2)+1,max(S2{i}(1)-scaleFactor,1):min(S2{i}(1)+scaleFactor,samplePoints));
+                puboligomer.CS{5,i} = (puboligomer.CS{2,i}+puboligomer.CS{3,i}+puboligomer.CS{4,i})./3;
                 
                 % Add pore label to image
                 im6 = insertText(im6,[S2{i}(1)+15,S2{i}(2)-15],i,...
@@ -630,15 +686,15 @@ for cImage = 1:length(files)
                     'BoxOpacity',0.8,'TextColor','black');
             end
             
-            pubPores.X = pores.X;
+            puboligomer.X = oligomer.X;
             
             imwrite(im6,fullfile([outDirPrepend, '/report_images/',files(cImage).name,'/',files(cImage).name,'_12_labeled.png']),'png');
-        case "Surface Coverage"
-            pores = struct;
-            pores.maxDepth = zeros(1,length(S2));
-            pores.maxHeight = zeros(1,length(S2));
+        case {'Surface Coverage'}
+            oligomer = struct;
+            oligomer.maxDepth = zeros(1,length(S2));
+            oligomer.maxHeight = zeros(1,length(S2));
             for i = 1:length(S2)
-                % Isolate pore by setting all other pores temporarily to 0
+                % Isolate pore by setting all other oligomer. temporarily to 0
                 z10 = false(size(z8));
                 z10(cc2.PixelIdxList{i}) = true;
                 
@@ -646,27 +702,27 @@ for cImage = 1:length(files)
                 im7(z8 ~= z10) = 0;
                 
                 % 20201116 Save max depth within detected oligomer
-                pores.maxDepth(i) = min(im7(z10));
-                pores.maxHeight(i) = max(im7(z10));
+                oligomer.maxDepth(i) = min(im7(z10));
+                oligomer.maxHeight(i) = max(im7(z10));
             end
-            DepthAbs = transpose(round(pores.maxDepth.*100)./100);
+            DepthAbs = transpose(round(oligomer.maxDepth.*100)./100);
     end
     
     %% 3D Pore Plots
     
     % Check if process is paused
-    if ~isempty(app)
+    if ~isempty(app) && ~isstruct(app)
         checkPauseStopStatus(app)
     end
     
     switch mode
-        case "Full Analysis"
+        case {'Automated Full Analysis','Manual Full Analysis'}
             delete(gca); close all;
             
             % [3D SURF] Save individual pore surface plots
             parfor i = 1:length(S2)
                 figure;
-                surf(pores.X{i},pores.Y{i},pores.Z{i},'LineStyle','none');
+                surf(oligomer.X{i},oligomer.Y{i},oligomer.Z{i},'LineStyle','none');
                 xlabel('X [nm]','FontSize',10);
                 ylabel('Y [nm]','FontSize',10);
                 zlabel('Height [nm]','FontSize',10);
@@ -680,21 +736,19 @@ for cImage = 1:length(files)
     %% 2D Pore Plots
     
     % Check if process is paused
-    if ~isempty(app)
+    if ~isempty(app) && ~isstruct(app)
         checkPauseStopStatus(app)
     end
     
     switch mode
-        case "Full Analysis"
+        case {'Automated Full Analysis','Manual Full Analysis'}
             delete(gca); close all;
             
-            % CHANGE 05.04.2019: revert to individual plots to use with report
-            % generator. Replaces "Get at most 32 pores per subplot (4x8)"
             parfor i = 1:length(S2)
-                % [2D Depth] Plotting pores individually;
-                imwrite(rescale(pores.Z{i},0,250),copper,fullfile([outDirPrepend '/report_images/' files(cImage).name '/' files(cImage).name '_' num2str(i+12+length(S2)) '_2D.png']),'png');
+                % [2D Depth] Plotting oligomer individually;
+                imwrite(rescale(oligomer.Z{i},0,250),copper,fullfile([outDirPrepend '/report_images/' files(cImage).name '/' files(cImage).name '_' num2str(i+12+length(S2)) '_2D.png']),'png');
                 
-                figure; imshow(pores.Z{i}); hold on
+                figure; imshow(oligomer.Z{i}); hold on
                 % Ellipse
                 xbar = min([stats(i).Centroid(1),scaleFactor+1]);
                 ybar = min([stats(i).Centroid(2),scaleFactor+1]);
@@ -733,12 +787,12 @@ for cImage = 1:length(files)
     %% Pore Cross-Sections
     
     % Check if process is paused
-    if ~isempty(app)
+    if ~isempty(app) && ~isstruct(app)
         checkPauseStopStatus(app)
     end
     
     switch mode
-        case "Full Analysis"
+        case {'Automated Full Analysis','Manual Full Analysis'}
             delete(gca); close all;
             
             
@@ -756,28 +810,28 @@ for cImage = 1:length(files)
             MidwallWidthL = zeros(length(S2),1);
             MidwallWidthR = zeros(length(S2),1);
             
-            % Preparing subplot array
+            % Prepare individual cross-section plots
             plotsProfile = cell(1,length(S2));
             parfor i = 1:length(S2)
                 % Fit minimally-smoothened curve to data for plotting and find wall heights
                 % (pks)
                 %       Use all three cross-sections to fit smoothened curve
-                smoothFit = fit([pores.CS{1,i}';pores.CS{1,i}';pores.CS{1,i}'],...
-                    [pores.CS{2,i}';pores.CS{3,i}';pores.CS{4,i}'],...
+                smoothFit = fit([oligomer.CS{1,i}';oligomer.CS{1,i}';oligomer.CS{1,i}'],...
+                    [oligomer.CS{2,i}';oligomer.CS{3,i}';oligomer.CS{4,i}'],...
                     'smoothingspline','SmoothingParam',0.8);
                 %       Use average of 3 cross-sections to determine height
                 warning('off')
-                [pks,loc_smooth,~] = findpeaks(pores.CS{5,i},pores.CS{1,i},...
+                [pks,loc_smooth,~] = findpeaks(oligomer.CS{5,i},oligomer.CS{1,i},...
                     'MinPeakDistance',minPD,'MinPeakHeight',minPH,'annotate','extents');
                 
                 % Fit extra-smoothened curve to find wall centers/pore diameter (loc)
                 %       Use all three cross-sections to fit extra-smoothened curve
-                centerFit = fit([pores.CS{1,i}';pores.CS{1,i}';pores.CS{1,i}'],...
-                    [pores.CS{2,i}';pores.CS{3,i}';pores.CS{4,i}'],...
+                centerFit = fit([oligomer.CS{1,i}';oligomer.CS{1,i}';oligomer.CS{1,i}'],...
+                    [oligomer.CS{2,i}';oligomer.CS{3,i}';oligomer.CS{4,i}'],...
                     'smoothingspline','SmoothingParam',0.05); %2020.09.25 changed smoothingparam from 0.01 to 0.05
-                yCenterFit = feval(centerFit,pores.CS{1,i}');
+                yCenterFit = feval(centerFit,oligomer.CS{1,i}');
                 warning('off')
-                [~,loc,~] = findpeaks(yCenterFit,pores.CS{1,i},'MinPeakDistance',...
+                [~,loc,~] = findpeaks(yCenterFit,oligomer.CS{1,i},'MinPeakDistance',...
                     minPD,'MinPeakHeight',minPH*0.75);
                 
                 % Solution to some failure in pore detection, where detected pore walls
@@ -788,33 +842,33 @@ for cImage = 1:length(files)
                 
                 if all([length(pks) >= 2, length(loc) >= 2])
                     % Calculate midwall width
-                    ySmoothFit = feval(smoothFit,pores.CS{1,i})';
+                    ySmoothFit = feval(smoothFit,oligomer.CS{1,i})';
                     
                     % Find initial midwall width at exactly 1/2 height
-                    yMidWall1 = zeros(1,length(pores.CS{1,i}))+pks(1)./2;
-                    yMidWall2 = zeros(1,length(pores.CS{1,i}))+pks(end)./2;
+                    yMidWall1 = zeros(1,length(oligomer.CS{1,i}))+pks(1)./2;
+                    yMidWall2 = zeros(1,length(oligomer.CS{1,i}))+pks(end)./2;
                     
                     %   P1 for left peak, P2 for right peak, each calculated at respective
                     %   peak's midwall height
-                    P1 = InterX([pores.CS{1,i};ySmoothFit],[pores.CS{1,i};yMidWall1]);
-                    P2 = InterX([pores.CS{1,i};ySmoothFit],[pores.CS{1,i};yMidWall2]);
+                    P1 = InterX([oligomer.CS{1,i};ySmoothFit],[oligomer.CS{1,i};yMidWall1]);
+                    P2 = InterX([oligomer.CS{1,i};ySmoothFit],[oligomer.CS{1,i};yMidWall2]);
                     
                     % Check that complete walls were found on each side, else mark
                     % as failed pore
                     if size(P1,2)<2 | size(P2,2)<2
                         figure;
                         warning('off')
-                        findpeaks(pores.CS{5,i},pores.CS{1,i},...
+                        findpeaks(oligomer.CS{5,i},oligomer.CS{1,i},...
                             'MinPeakDistance',minPD,'MinPeakHeight',minPH,'annotate','extents')
                         hold on;
                         warning('off')
-                        findpeaks(yCenterFit,pores.CS{1,i},'MinPeakDistance',...
+                        findpeaks(yCenterFit,oligomer.CS{1,i},'MinPeakDistance',...
                             minPD,'MinPeakHeight',minPH*0.75)
                         ylim([-2,4]);
-                        xlim([pores.CS{1,i}(1),pores.CS{1,i}(end)]);
+                        xlim([oligomer.CS{1,i}(1),oligomer.CS{1,i}(end)]);
                         %title(sprintf('Pore %i',i));
                         failedPore = i + sum(ignoredPores < i);
-                        text(mean(pores.CS{1,i})-10,1,{'Pore width calculation failed,';sprintf('please ignore pore %i',failedPore)})
+                        text(mean(oligomer.CS{1,i})-10,1,{'Pore width calculation failed,';sprintf('please ignore pore %i',failedPore)})
                         exportgraphics(gcf,fullfile([outDirPrepend, '/report_images/' files(cImage).name '/' files(cImage).name '_' num2str(i+12+3.*length(S2)) '_profile.png']));
                         continue
                     else
@@ -833,7 +887,6 @@ for cImage = 1:length(files)
                         % Check if left wall out of expected range
                         if walls2(1)
                             currentMidWallWidthL = NaN;
-                            
                         end
                         
                         % Check if right wall out of expected range
@@ -847,12 +900,12 @@ for cImage = 1:length(files)
                     % Calculate pore depth as minimum value between pore walls
                     % Added 2020.11.16: Find min depth of all 3 cross sections
                     % called "Depth3"
-                    [Depth(i),ind] = min(pores.CS{5,i}(pores.CS{1,i} > loc(1) & pores.CS{1,i} < loc(end)));
-                    depthX = pores.CS{1,i}(find(pores.CS{1,i}==loc(1)) + ind);
+                    [Depth(i),ind] = min(oligomer.CS{5,i}(oligomer.CS{1,i} > loc(1) & oligomer.CS{1,i} < loc(end)));
+                    depthX = oligomer.CS{1,i}(find(oligomer.CS{1,i}==loc(1)) + ind);
                     
-                    combCS = [pores.CS{2,i}(pores.CS{1,i} > loc(1) & pores.CS{1,i} < loc(end)),...
-                        pores.CS{3,i}(pores.CS{1,i} > loc(1) & pores.CS{1,i} < loc(end)),...
-                        pores.CS{4,i}(pores.CS{1,i} > loc(1) & pores.CS{1,i} < loc(end))]
+                    combCS = [oligomer.CS{2,i}(oligomer.CS{1,i} > loc(1) & oligomer.CS{1,i} < loc(end)),...
+                        oligomer.CS{3,i}(oligomer.CS{1,i} > loc(1) & oligomer.CS{1,i} < loc(end)),...
+                        oligomer.CS{4,i}(oligomer.CS{1,i} > loc(1) & oligomer.CS{1,i} < loc(end))];
                     Depth3(i) = min(combCS);
                     Height3(i) = max(combCS);
                     
@@ -864,10 +917,10 @@ for cImage = 1:length(files)
                     figure;
                     hold on;
                     plot(smoothFit);
-                    plot(pores.CS{1,i},pores.CS{2,i},'r--',...
-                        pores.CS{1,i},pores.CS{3,i},'c--',...
-                        pores.CS{1,i},pores.CS{4,i},'m--',...
-                        pores.CS{1,i},pores.CS{5,i},'k-');
+                    plot(oligomer.CS{1,i},oligomer.CS{2,i},'r--',...
+                        oligomer.CS{1,i},oligomer.CS{3,i},'c--',...
+                        oligomer.CS{1,i},oligomer.CS{4,i},'m--',...
+                        oligomer.CS{1,i},oligomer.CS{5,i},'k-');
                     legend('off')
                     % Add vertical lines denoting pore wall centers
                     xline(loc(1),'r--');
@@ -897,7 +950,7 @@ for cImage = 1:length(files)
                     else
                         ylim([-2,4]);
                     end
-                    xlim([pores.CS{1,i}(1),pores.CS{1,i}(end)]);
+                    xlim([oligomer.CS{1,i}(1),oligomer.CS{1,i}(end)]);
                     
                     plotsProfile{i} = gca;
                     
@@ -910,16 +963,16 @@ for cImage = 1:length(files)
                     MidwallWidthR(i) = currentMidWallWidthR;
                 else
                     figure;
-                    findpeaks(pores.CS{5,i},pores.CS{1,i},...
+                    findpeaks(oligomer.CS{5,i},oligomer.CS{1,i},...
                         'MinPeakDistance',minPD,'MinPeakHeight',minPH,'annotate','extents')
                     hold on;
-                    findpeaks(yCenterFit,pores.CS{1,i},'MinPeakDistance',...
+                    findpeaks(yCenterFit,oligomer.CS{1,i},'MinPeakDistance',...
                         minPD,'MinPeakHeight',minPH*0.75)
                     ylim([-2,4]);
-                    xlim([pores.CS{1,i}(1),pores.CS{1,i}(end)]);
+                    xlim([oligomer.CS{1,i}(1),oligomer.CS{1,i}(end)]);
                     %title(sprintf('Pore %i',i));
                     failedPore = i + sum(ignoredPores < i);
-                    text(mean(pores.CS{1,i})-10,1,{'Pore detection failed,';sprintf('please check input parameters for pore %i',failedPore)})
+                    text(mean(oligomer.CS{1,i})-10,1,{'Pore detection failed,';sprintf('please check input parameters for pore %i',failedPore)})
                 end
                 exportgraphics(gcf,fullfile([outDirPrepend, '/report_images/' files(cImage).name '/' files(cImage).name '_' num2str(i+12+3.*length(S2)) '_profile.png']));
             end
@@ -928,21 +981,23 @@ for cImage = 1:length(files)
             % Correct when min depth is lower than AbsDepth (due to region selection in AbsDepth)
             % then substitutes Depth3 value into AbsDepth
             for i = 1:length(S2)
-                if Depth3(i) < pores.maxDepth(i)
-                    pores.maxDepth(i) = Depth3(i);
+                if Depth3(i) < oligomer.maxDepth(i)
+                    oligomer.maxDepth(i) = Depth3(i);
                 end
             end
             
             %*************************%
             %** SAVE PORE STRUCTURE **%
             %*************************%
-            save([outDirPrepend '/oligomer_profiles/' files(cImage).name '.mat'],'-struct','pubPores');
+            save([outDirPrepend '/oligomer_profiles/' files(cImage).name '.mat'],'-struct','puboligomer');
             
-            DepthAbs = transpose(round(pores.maxDepth.*100)./100);
+            %% Summary Statistics and Table Generation
+            
+            DepthAbs = transpose(round(oligomer.maxDepth.*100)./100);
             Depth = round(Depth.*100)./100;
             Depth3 = round(Depth3.*100)./100;
             Diameter = round(Diameter.*100)./100;
-            HeightAbs = transpose(round(pores.maxHeight.*100)./100);
+            HeightAbs = transpose(round(oligomer.maxHeight.*100)./100);
             Height = round(Height.*100)./100;
             Height3 = round(Height3.*100)./100;
             MidwallWidthL = round(MidwallWidthL.*100)./100;
@@ -950,17 +1005,63 @@ for cImage = 1:length(files)
             MajorAxis = round([stats.MajorAxisLength]'.*100.*imSize./samplePoints)./100;
             MinorAxis = round([stats.MinorAxisLength]'.*100.*imSize./samplePoints)./100;
             
-            %if usePoreTypes
-            T = table(Label,Depth,Diameter,Height,MidwallWidthL,MidwallWidthR,DepthAbs,Depth3,HeightAbs,Height3,MajorAxis,MinorAxis,poreTypes,OGLabel');
-            %else
-            %    T = table(Label,Depth,Diameter,Height,MidwallWidthL,MidwallWidthR,DepthAbs,Depth3,HeightAbs,Height3,MajorAxis,MinorAxis);
-            %end
+            switch mode
+                case {'Manual Full Analysis'}
+                    T = table(Label,Depth,Diameter,Height,MidwallWidthL,MidwallWidthR,...
+                        DepthAbs,Depth3,HeightAbs,Height3,MajorAxis,MinorAxis,...
+                        poreTypes,OGLabel');
+                    names = [fieldnames(stats_nofill); T.Properties.VariableNames'; {'samplePoints';'imSize'}];   % ;{'X';'Y';'Z'}
+                    names(22) = {'OGLabel'};
+                case {'Automated Full Analysis','Surface Coverage'}
+                    T = table(Label,Depth,Diameter,Height,MidwallWidthL,MidwallWidthR,...
+                        DepthAbs,Depth3,HeightAbs,Height3,MajorAxis,MinorAxis);
+                    names = [fieldnames(stats_nofill); T.Properties.VariableNames'; {'samplePoints';'imSize'}];   % ;{'X';'Y';'Z'}
+            end
+            
+            % Add all relevant data to stats structure for classifier
+            
+            
+            statsTable = cell2table([struct2cell(stats_nofill)', table2cell(T),repmat({samplePoints},height(T),1), repmat({imSize},height(T),1)], 'VariableNames', names); %; oligomer.X; oligomer.Y; oligomer.Z
+            
+            % 2021.06.21: If using model predicted poreType, run prediction
+            if useModelPrediction
+                % Load trained classification models
+                load('resources/trainedModels.mat');
+                
+                % Pre-process statsTable data (includes bwskel estimate +
+                % ridge estimates
+                names = [statsTable.Properties.VariableNames';{'X';'Y';'Z'}];
+                stats_classifier = cell2struct([table2cell(statsTable)'; oligomer.X;oligomer.Y;oligomer.Z], names, 1);
+                
+                statsTable = preClassifier(stats_classifier);
+                
+                
+                switch classifier
+                    case 'Naive Bayes'
+                        trainedModel = nb_trainedModel;
+                    case 'KNN'
+                        trainedModel = cKNN_trainedModel;
+                    case 'SVM'
+                        trainedModel = qSVM_trainedModel;
+                end
+                predictedPoreTypes = trainedModel.predictFcn(statsTable);
+                T.poreTypes = predictedPoreTypes;
+                statsTable.poreTypes = predictedPoreTypes;
+            end
+            
+            % Save Table and Structure
             writetable(T,[outDirPrepend, '/summary_txt/', files(cImage).name,'_out.txt'],'Delimiter','\t')
+            writetable(statsTable,[outDirPrepend, '/oligomer_data/', files(cImage).name,'_statsTable.txt'],'Delimiter','\t')
     end
     
+    %% Surface Coverage Statistics
+    
     % ADDED 20210512: Count number of Transmembrane Oligomers/Features
-    Below1nm = sum(DepthAbs < -1);
-    Below2nm = sum(DepthAbs < -2);
+    switch mode
+        case {'Automated Full Analysis','Manual Full Analysis'}
+            Below1nm = sum(oligomer.maxDepth < -1);
+            Below2nm = sum(oligomer.maxDepth < -2);
+    end
     
     % Save surface coverage to csv file
     totalCov = sum(sum(allCoverage))./numel(allCoverage);
@@ -976,14 +1077,20 @@ for cImage = 1:length(files)
         numDefects,defectCov,lowCov,highCov,aggCov,totalCov};
     
     fid = fopen([outDirPrepend '/surfCoverage.csv'], 'a');
-    fprintf(fid,'%s,%s,%s,%i,%i,%i,%d,%i,%d,%d,%d,%d,%d\n',files(cImage).name,analysisFolder{end-1},analysisFolder{end},length(S2),Below1nm,Below2nm,surfCov,...
-        numDefects,defectCov,lowCov,highCov,aggCov,totalCov);
+    switch mode
+        case {'Automated Full Analysis','Manual Full Analysis'}
+            fprintf(fid,'%s,%s,%s,%i,%i,%i,%d,%i,%d,%d,%d,%d,%d\n',files(cImage).name,analysisFolder{end-1},analysisFolder{end},length(S2),Below1nm,Below2nm,surfCov,...
+                numDefects,defectCov,lowCov,highCov,aggCov,totalCov);
+        case {'Surface Coverage'}
+            fprintf(fid,'%s,%s,%s,%i,%d,%i,%d,%d,%d,%d,%d\n',files(cImage).name,analysisFolder{end-1},analysisFolder{end},length(S2),surfCov,...
+                numDefects,defectCov,lowCov,highCov,aggCov,totalCov);
+    end
+    
     fclose(fid) ;
     
     
     
-    %%
-    %Cleanup
+    %% Cleanup
     delete(gca); close all;
     
     % Shut down parallel pool to reset memory
@@ -992,15 +1099,19 @@ for cImage = 1:length(files)
     %% Write report
     
     % Check if process is paused
-    if ~isempty(app)
+    if ~isempty(app) && ~isstruct(app)
         checkPauseStopStatus(app)
     end
     
     switch mode
-        case "Full Analysis"
-            GSDMx_reportGenerator(files(cImage),outDirPrepend,T,surfCov);
-        case "Surface Coverage"
-            GSDMx_reportGenerator_surfCov(files(cImage),outDirPrepend,Tcov);
+        case {'Manual Full Analysis'}
+            GSDMx_reportGenerator(files(cImage),outDirPrepend,T,Tcov,app);
+        case {'Automated Full Analysis'}
+            poreTypesNum = cellfun(@(x) str2num(strrep(strrep(strrep(x,'Ring','2'),'Slit','3'),'Arc','4')),T.poreTypes,'un',0);
+            T.poreTypes = poreTypesNum;
+            GSDMx_reportGenerator(files(cImage),outDirPrepend,T,Tcov,app);
+        case {'Surface Coverage'}
+            GSDMx_reportGenerator_surfCov(files(cImage),outDirPrepend,Tcov,app);
     end
     mlreportgen.utils.rptviewer.closeAll()
     
@@ -1011,14 +1122,16 @@ for cImage = 1:length(files)
     % Update App progressbar (royalblue)
     currentProg = min(round((size(app.AnalyzeButton.Icon,2)-2)*(cImage/app.numImages)),size(app.AnalyzeButton.Icon,2)-2);
     app.AnalyzeButton.Icon(2:end-1, 2:currentProg+1, 1) = 0.25391;
-    app.AnalyzeButton.Icon(2:end-1, 2:currentProg+1, 2) = 0.41016;
+    app.AnalyzeButton.Icon(2:end-1, 2:currentProg+1, 2) = -0.58984;
     app.AnalyzeButton.Icon(2:end-1, 2:currentProg+1, 3) = 0.87891;
+    
+    %% Clear Parallel Memory before starting next iteration of loop
+    parfevalOnAll(@clearvars, 0)
 end
 toc
-
+set(0,'DefaultFigureVisible','on')
 %% After processing all data, run R Script to generate summary statistics with figures
 
 
 
 end
-
